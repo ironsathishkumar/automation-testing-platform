@@ -4,14 +4,14 @@ import type { NextRequest } from "next/server";
 const PUBLIC_PATHS = ["/login", "/register"];
 
 export function middleware(request: NextRequest) {
-  const token = request.cookies.get("atp_token")?.value;
+  const signedIn = request.cookies.has("atp_token") || request.cookies.has("atp_session");
   const isPublic = PUBLIC_PATHS.some((path) => request.nextUrl.pathname.startsWith(path));
 
-  if (!token && !isPublic) {
+  if (!signedIn && !isPublic) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  if (token && isPublic) {
+  if (signedIn && isPublic) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 

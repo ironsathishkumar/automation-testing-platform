@@ -1,24 +1,47 @@
-import { CookieOptions } from "express";
+import { CookieOptions, Response } from "express";
 
-export const TOKEN_COOKIE = "atp_token";
+export const ACCESS_COOKIE = "atp_token";
+export const REFRESH_COOKIE = "atp_refresh";
+export const SESSION_HINT_COOKIE = "atp_session";
+export const REFRESH_COOKIE_PATH = "/api/auth";
 
-export function cookieOptions(expiresIn: string): CookieOptions {
-  return {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: false,
-    path: "/",
-    maxAge: expiresInToMs(expiresIn),
-  };
+export interface CookieSettings {
+  secure: boolean;
+  accessTtlSeconds: number;
 }
 
-function expiresInToMs(value: string) {
-  const match = /^(\d+)([dhms])$/.exec(value);
-  if (!match) {
-    return 7 * 24 * 60 * 60 * 1000;
-  }
-  const amount = Number(match[1]);
-  const unit = match[2];
-  const multipliers: Record<string, number> = { s: 1000, m: 60_000, h: 3_600_000, d: 86_400_000 };
-  return amount * (multipliers[unit ?? "d"] ?? 86_400_000);
+function base(secure: boolean): CookieOptions {
+  return { httpOnly: true, secure };
+}
+
+export function setAuthCookies(
+  response: Response,
+  settings: CookieSettings,
+  tokens: { accessToken: string; refreshToken: string; refreshExpiresAt: Date },
+) {
+  const refreshMaxAge = Math.max(0, tokens.refreshExpiresAt.getTime() - Date.now());
+  response.cookie(ACCESS_COOKIE, tokens.accessToken, {
+    ...base(settings.secure),
+    sameSite: "lax",
+    path: "/",
+    maxAge: settings.accessTtlSeconds * 1000,
+  });
+  response.cookie(REFRESH_COOKIE, tokens.refreshToken, {
+    ...base(settings.secure),
+    sameSite: "strict",
+    path: REFRESH_COOKIE_PATH,
+    maxAge: refreshMaxAge,
+  });
+  response.cookie(SESSION_HINT_COOKIE, "1", {
+    ...base(settings.secure),
+    sameSite: "lax",
+    path: "/",
+    maxAge: refreshMaxAge,
+  });
+}
+
+export function clearAuthCookies(response: Response, secure: boolean) {
+  response.clearCookie(ACCESS_COOKIE, { ...base(secure), sameSite: "lax", path: "/" });
+  response.clearCookie(REFRESH_COOKIE, { ...base(secure), sameSite: "strict", path: REFRESH_COOKIE_PATH });
+  response.clearCookie(SESSION_HINT_COOKIE, { ...base(secure), sameSite: "lax", path: "/" });
 }

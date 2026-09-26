@@ -7,8 +7,13 @@ const envSchema = z.object({
   API_PORT: z.coerce.number().int().min(1).max(65535).default(4000),
   API_HOST: z.string().default("127.0.0.1"),
   MONGODB_URI: z.string().min(1),
-  JWT_SECRET: z.string().min(16),
-  JWT_EXPIRES_IN: z.string().default("7d"),
+  JWT_SECRET: z.string().min(32),
+  ACCESS_TOKEN_TTL_SECONDS: z.coerce.number().int().min(1).max(86_400).default(7_200),
+  REFRESH_TOKEN_TTL_DAYS: z.coerce.number().int().min(1).max(365).default(60),
+  COOKIE_SECURE: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
   ARTIFACT_ROOT: z.string().default("storage/artifacts"),
   LOG_ROOT: z.string().default("storage/logs"),
   WEB_ORIGIN: z.string().default("http://localhost:3000"),
