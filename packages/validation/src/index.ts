@@ -232,11 +232,19 @@ export const createRunSchema = z
     planId: objectId.optional(),
     suiteId: objectId.optional(),
     testCaseId: objectId.optional(),
+    all: z.boolean().optional(),
     environmentId: objectId.optional(),
+    headed: z.boolean().optional(),
   })
-  .refine((value) => Boolean(value.planId || value.suiteId || value.testCaseId), {
+  .refine((value) => Boolean(value.planId || value.suiteId || value.testCaseId || value.all), {
     message: "Choose a plan, suite, or test case",
   });
+
+export const aiSettingsSchema = z.object({
+  baseUrl: z.string().trim().url("Enter the provider URL, e.g. https://api.openai.com/v1").max(300),
+  model: z.string().trim().min(1, "Enter a model name").max(120),
+  apiKey: z.string().trim().max(500).default(""),
+});
 
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
@@ -256,3 +264,4 @@ export type CreateRunInput = z.infer<typeof createRunSchema>;
 export type AiPromptInput = z.infer<typeof aiPromptSchema>;
 export type AiTestInput = z.infer<typeof aiTestSchema>;
 export type GenerateDocumentTestsInput = z.infer<typeof generateDocumentTestsSchema>;
+export type AiSettingsInput = z.infer<typeof aiSettingsSchema>;

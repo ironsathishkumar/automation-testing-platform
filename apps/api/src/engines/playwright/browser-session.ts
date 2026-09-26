@@ -1,15 +1,29 @@
 import { ExecutionContext } from "@atp/engine-contracts";
 import { Browser, BrowserContext, Page, chromium, firefox, webkit } from "playwright";
 
+export const WATCH_SLOW_MO_MS = 600;
+
 export interface BrowserSession {
   page: Page;
   close: () => Promise<void>;
 }
 
-export async function openBrowser(context: ExecutionContext): Promise<BrowserSession> {
+export async function launchBrowser(context: ExecutionContext, logs?: string[]): Promise<Browser> {
   const browserName = context.browser ?? "chromium";
   const launcher = browserName === "firefox" ? firefox : browserName === "webkit" ? webkit : chromium;
-  const browser: Browser = await launcher.launch({ headless: true, timeout: context.timeoutMs });
+  if (context.headed) {
+    try {
+      return await launcher.launch({ headless: false, slowMo: WATCH_SLOW_MO_MS, timeout: context.timeoutMs });
+    } catch (error) {
+      const reason = error instanceof Error ? error.message.split("\n")[0] : "unknown error";
+      logs?.push(`Could not open a visible browser (${reason}); ran hidden instead.`);
+    }
+  }
+  return launcher.launch({ headless: true, timeout: context.timeoutMs });
+}
+
+export async function openBrowser(context: ExecutionContext): Promise<BrowserSession> {
+  const browser = await launchBrowser(context);
   let browserContext: BrowserContext | undefined;
   try {
     browserContext = await browser.newContext({

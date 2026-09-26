@@ -2,8 +2,11 @@ import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { Injectable } from "@nestjs/common";
 import { ArtifactReference, EngineResult, ExecutionContext, StepResult, TestEngine } from "@atp/engine-contracts";
-import { Browser, BrowserContext, Page, chromium, firefox, webkit } from "playwright";
+import { Browser, BrowserContext, Page } from "playwright";
+import { launchBrowser } from "./browser-session";
 import { artifactReference, captureScreenshot, executeWebStep } from "./playwright.steps";
+
+const WATCH_END_PAUSE_MS = 1500;
 
 @Injectable()
 export class PlaywrightEngine implements TestEngine {
@@ -32,12 +35,10 @@ export class PlaywrightEngine implements TestEngine {
     const steps: StepResult[] = [];
     const artifacts: ArtifactReference[] = [];
     const errors: { code: string; message: string }[] = [];
-    const browserName = context.browser ?? "chromium";
-    const launcher = browserName === "firefox" ? firefox : browserName === "webkit" ? webkit : chromium;
     let browser: Browser | undefined;
     let browserContext: BrowserContext | undefined;
     try {
-      browser = await launcher.launch({ headless: true, timeout: context.timeoutMs });
+      browser = await launchBrowser(context, logs);
       const videoDir = path.join(context.artifactDirectory, "videos");
       mkdirSync(videoDir, { recursive: true });
       browserContext = await browser.newContext({
@@ -65,6 +66,8 @@ export class PlaywrightEngine implements TestEngine {
           const produced = await executeWebStep(page, step, context);
           artifacts.push(...produced);
           steps.push({ id: step.id, order: step.order, action: step.action, status: "passed", durationMs: Date.now() - stepStarted });
+          const shot = await captureScreenshot(page, context, `step-${step.order}.png`).catch(() => undefined);
+          if (shot) artifacts.push(shot);
           logs.push(`step_passed ${step.action}`);
         } catch (error) {
           failed = true;
@@ -77,6 +80,7 @@ export class PlaywrightEngine implements TestEngine {
           break;
         }
       }
+      if (context.headed && !context.signal.aborted) await page.waitForTimeout(WATCH_END_PAUSE_MS).catch(() => undefined);
       const tracePath = path.join(context.artifactDirectory, "trace.zip");
       await browserContext.tracing.stop({ path: tracePath });
       artifacts.push(artifactReference(context, tracePath, "trace", "application/zip"));

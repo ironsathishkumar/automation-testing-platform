@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Chip, Table, TableBody, TableCell, TableHead, TableRow } from "@mui/material";
+import { Button, Chip, Stack, Table, TableBody, TableCell, TableHead, TableRow } from "@mui/material";
 import { TestCase } from "@atp/shared-types";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
@@ -8,6 +8,7 @@ import { use } from "react";
 import { EmptyState, PageHeader } from "@/components/PageHeader";
 import { ENGINE_GUIDE } from "@/features/test-cases/engine-guide";
 import { RunButton } from "@/features/test-runs/RunButton";
+import { WatchToggle } from "@/features/test-runs/watch-mode";
 import { api, errorMessage } from "@/lib/api";
 import { Alert } from "@mui/material";
 
@@ -17,13 +18,20 @@ export default function TestCasesPage({ params }: { params: Promise<{ projectId:
     queryKey: ["test-cases", projectId],
     queryFn: () => api<TestCase[]>(`/projects/${projectId}/test-cases`),
   });
+  const runnable = (cases.data ?? []).filter((testCase) => testCase.status !== "deprecated" && testCase.steps.length > 0).length;
 
   return (
     <>
       <PageHeader
         title="Test cases"
-        subtitle="Each test case is one check. Press Run to execute it on this machine."
-        action={<Button variant="contained" component={Link} href={`/projects/${projectId}/test-cases/new`}>New test case</Button>}
+        subtitle="Each test case is one check. Press Run for one, or Run all to test the whole app. Turn on “Show browser” to watch it happen."
+        action={
+          <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
+            <WatchToggle />
+            {runnable > 0 ? <RunButton projectId={projectId} all size="medium" label={`Run all (${runnable})`} /> : null}
+            <Button variant="outlined" component={Link} href={`/projects/${projectId}/test-cases/new`}>New test case</Button>
+          </Stack>
+        }
       />
       {cases.error ? <Alert severity="error">{errorMessage(cases.error)}</Alert> : null}
       {cases.data?.length === 0 ? (

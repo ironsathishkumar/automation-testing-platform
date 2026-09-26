@@ -1,14 +1,18 @@
-import { Body, Controller, Get, HttpCode, Param, Post } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpCode, Param, Post, Put } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
-import { aiPromptSchema, aiTestSchema, GenerateDocumentTestsInput, generateDocumentTestsSchema } from "@atp/validation";
+import { AiSettingsInput, aiSettingsSchema, aiPromptSchema, aiTestSchema, GenerateDocumentTestsInput, generateDocumentTestsSchema } from "@atp/validation";
 import { AuthUser, CurrentUser } from "../../common/current-user.decorator";
 import { ZodValidationPipe } from "../../common/zod-validation.pipe";
+import { AiSettingsService } from "./ai-settings.service";
 import { AiService } from "./ai.service";
 
 @ApiTags("ai")
 @Controller()
 export class AiController {
-  constructor(private readonly ai: AiService) {}
+  constructor(
+    private readonly ai: AiService,
+    private readonly settings: AiSettingsService,
+  ) {}
 
   @Get("projects/:projectId/ai/requests")
   list(@Param("projectId") projectId: string) {
@@ -17,7 +21,23 @@ export class AiController {
 
   @Get("ai/status")
   status() {
-    return this.ai.status();
+    return this.settings.view();
+  }
+
+  @Put("ai/settings")
+  saveSettings(@Body(new ZodValidationPipe(aiSettingsSchema)) body: unknown, @CurrentUser() user: AuthUser) {
+    return this.settings.save(body as AiSettingsInput, user.id);
+  }
+
+  @Delete("ai/settings")
+  clearSettings() {
+    return this.settings.clear();
+  }
+
+  @Post("ai/settings/test")
+  @HttpCode(200)
+  testSettings() {
+    return this.ai.checkConnection();
   }
 
   @Post("files/:id/generate-tests")

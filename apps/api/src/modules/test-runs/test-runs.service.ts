@@ -80,6 +80,7 @@ export class TestRunsService implements OnModuleInit, OnModuleDestroy {
           retryCount: selection.retryCount,
           browser: matrix.browser,
           viewport: matrix.viewport,
+          headed: input.headed === true,
         },
       })),
     );
@@ -292,6 +293,7 @@ export class TestRunsService implements OnModuleInit, OnModuleDestroy {
       apiBaseUrl: environment?.apiBaseUrl ?? application?.apiBaseUrl,
       browser: typeof browser === "string" ? browser : "chromium",
       viewport,
+      headed: job.payload.headed === true,
       steps: testCase.steps.map((step) => ({
         id: step.id,
         order: step.order,
@@ -407,6 +409,15 @@ export class TestRunsService implements OnModuleInit, OnModuleDestroy {
         throw new AppException("NOT_FOUND", "Test case not found", HttpStatus.NOT_FOUND);
       }
       return { cases: [testCase], executionMode: "sequential" as const, retryCount: 0, environmentId: input.environmentId, matrices: matrixCombinations() };
+    }
+    if (input.all) {
+      const cases = await this.testCases
+        .find({ projectId: asObjectId(input.projectId), status: { $ne: "deprecated" }, "steps.0": { $exists: true } })
+        .sort({ createdAt: 1 });
+      if (cases.length === 0) {
+        throw new AppException("VALIDATION_ERROR", "This project has no test cases with steps to run", HttpStatus.BAD_REQUEST);
+      }
+      return { cases, executionMode: "sequential" as const, retryCount: 0, environmentId: input.environmentId, matrices: matrixCombinations() };
     }
     if (input.suiteId) {
       const suite = await this.suites.findById(asObjectId(input.suiteId, "Test suite not found"));

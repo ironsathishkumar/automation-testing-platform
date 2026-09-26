@@ -80,8 +80,7 @@ export function DocumentWorkspace({ projectId, fileId }: { projectId: string; fi
             <FormControlLabel control={<Switch checked={useAi} onChange={(event) => setUseAi(event.target.checked)} />} label={`Let AI (${aiStatus.data.model}) write the steps`} />
           ) : (
             <Typography variant="caption" color="text.secondary">
-              Want AI to write the steps too? Add <code>AI_API_KEY=sk-...</code> to .env (or for local Ollama: <code>AI_BASE_URL=http://localhost:11434/v1</code>, <code>AI_API_KEY=ollama</code>,{" "}
-              <code>AI_MODEL=llama3.1</code>) and restart the API.
+              Want AI to write real steps too? <Link href="/ai">Connect an AI provider</Link> (Gemini and Groq have free tiers), then come back.
             </Typography>
           )}
           {!selectedApp && applications.isSuccess ? <Alert severity="warning">Add the website or API URL in project Settings first.</Alert> : null}

@@ -22,7 +22,7 @@ import { TestCasesService } from "../test-cases/test-cases.service";
 import { TestResult, TestRun } from "../test-runs/execution.schemas";
 import { AiRequest, AiRequestDocument } from "./ai-request.schema";
 import { AiProvider } from "./ai.provider";
-import { aiSettings, parseModelJson } from "./ai.parse";
+import { parseModelJson } from "./ai.parse";
 import { DOCUMENT_TAG, engineForApplication, sectionDrafts } from "./document-drafts";
 
 const DOCUMENT_CHAR_LIMIT = 15_000;
@@ -66,13 +66,10 @@ export class AiService {
     return this.present(record);
   }
 
-  status() {
-    try {
-      const settings = aiSettings(process.env);
-      return { configured: Boolean(settings), model: settings?.model ?? null, message: settings ? null : "Set AI_API_KEY in .env and restart the API." };
-    } catch (error) {
-      return { configured: false, model: null, message: error instanceof Error ? error.message : "AI provider is misconfigured" };
-    }
+  async checkConnection() {
+    const started = Date.now();
+    const reply = await this.provider.complete("You are a connection check.", "Reply with the single word OK.");
+    return { ok: true, reply: reply.trim().slice(0, 80), durationMs: Date.now() - started };
   }
 
   async generateFromDocument(fileId: string, input: GenerateDocumentTestsInput, userId: string): Promise<GeneratedDocumentTests> {

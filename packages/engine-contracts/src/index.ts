@@ -13,6 +13,7 @@ export interface ExecutionContext {
   apiBaseUrl?: string;
   browser?: string;
   viewport?: { width: number; height: number };
+  headed?: boolean;
   steps: TestStep[];
   signal: AbortSignal;
 }

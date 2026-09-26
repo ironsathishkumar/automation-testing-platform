@@ -5,6 +5,7 @@ import { Application, Project } from "@atp/shared-types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
+import { AiSettingsCard, useAiSettings } from "@/features/ai/AiSettingsCard";
 import { api, errorMessage } from "@/lib/api";
 
 interface AiRequestView {
@@ -22,6 +23,7 @@ export default function AiPage() {
   const [projectId, setProjectId] = useState("");
   const [applicationId, setApplicationId] = useState("");
   const [prompt, setPrompt] = useState("");
+  const aiReady = Boolean(useAiSettings().data?.configured);
   const projects = useQuery({ queryKey: ["projects"], queryFn: () => api<Project[]>("/projects") });
   const applications = useQuery({
     queryKey: ["applications", projectId],
@@ -53,7 +55,10 @@ export default function AiPage() {
 
   return (
     <Stack spacing={2}>
-      <PageHeader title="AI" subtitle="Drafts come from your configured model. Nothing is saved as a test until you approve it." />
+      <PageHeader title="AI" subtitle="Connect a model once, then use it to draft tests, write steps from documents, and explain failures. Nothing is saved as a test until you approve it." />
+      <AiSettingsCard />
+      <Typography variant="h6" sx={{ pt: 1 }}>Ask AI</Typography>
+      {aiReady ? null : <Alert severity="warning">Set up an AI provider above to use these buttons.</Alert>}
       {generate.error ? <Alert severity="error">{errorMessage(generate.error)}</Alert> : null}
       {approve.error ? <Alert severity="error">{errorMessage(approve.error)}</Alert> : null}
       <TextField select label="Project" value={projectId} onChange={(event) => { setProjectId(event.target.value); setApplicationId(""); }}>
@@ -62,11 +67,20 @@ export default function AiPage() {
       <TextField select label="Application" value={applicationId} onChange={(event) => setApplicationId(event.target.value)} disabled={!projectId}>
         {(applications.data ?? []).map((application) => <MenuItem key={application.id} value={application.id}>{application.name}</MenuItem>)}
       </TextField>
-      <TextField label="Prompt" value={prompt} onChange={(event) => setPrompt(event.target.value)} multiline minRows={3} />
+      <TextField
+        label="Prompt"
+        value={prompt}
+        onChange={(event) => setPrompt(event.target.value)}
+        multiline
+        minRows={3}
+        placeholder="A logged-in user creates a task with a title and due date, and sees it on the board"
+        slotProps={{ inputLabel: { shrink: true } }}
+      />
       <Stack direction="row" spacing={1}>
-        <Button variant="contained" disabled={!projectId || prompt.trim().length < 2 || generate.isPending} onClick={() => generate.mutate("scenarios")}>Scenarios</Button>
-        <Button variant="contained" disabled={!projectId || !applicationId || prompt.trim().length < 2 || generate.isPending} onClick={() => generate.mutate("tests")}>Draft test</Button>
-        <Button disabled={!projectId || prompt.trim().length < 2 || generate.isPending} onClick={() => generate.mutate("suggestions")}>Suggestions</Button>
+        <Button variant="contained" disabled={!aiReady || !projectId || prompt.trim().length < 2 || generate.isPending} onClick={() => generate.mutate("scenarios")}>Scenarios</Button>
+        <Button variant="contained" disabled={!aiReady || !projectId || !applicationId || prompt.trim().length < 2 || generate.isPending} onClick={() => generate.mutate("tests")}>Draft test</Button>
+        <Button disabled={!aiReady || !projectId || prompt.trim().length < 2 || generate.isPending} onClick={() => generate.mutate("suggestions")}>Suggestions</Button>
+        {generate.isPending ? <Typography color="text.secondary" sx={{ alignSelf: "center" }}>Waiting for the model…</Typography> : null}
       </Stack>
       {(requests.data ?? []).map((request) => (
         <Paper key={request.id} sx={{ p: 2 }}>
