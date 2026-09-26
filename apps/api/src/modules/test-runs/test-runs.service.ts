@@ -18,6 +18,7 @@ import { TestCase } from "../test-cases/test-case.schema";
 import { TestPlan } from "../test-plans/test-plan.schema";
 import { TestSuite } from "../test-suites/test-suite.schema";
 import { ArtifactRecord, ExecutionJob, ExecutionJobDocument, ExecutionLog, TestResult, TestResultDocument, TestRun, TestRunDocument } from "./execution.schemas";
+import { jobVariant, matrixCombinations, readViewport } from "./run-matrix";
 import { summarizeResults } from "./run-status";
 
 const CONCURRENCY = 2;
@@ -64,24 +65,26 @@ export class TestRunsService implements OnModuleInit, OnModuleDestroy {
       status: "queued",
       executionMode: selection.executionMode,
       retryCount: selection.retryCount,
-      total: selection.cases.length,
+      total: selection.cases.length * selection.matrices.length,
       triggeredBy: new Types.ObjectId(userId),
     });
-    await this.jobs.insertMany(
-      selection.cases.map((testCase) => ({
+    const jobs = selection.cases.flatMap((testCase) =>
+      selection.matrices.map((matrix) => ({
         runId: run._id,
         testCaseId: testCase._id,
         engineType: testCase.engineType,
-        status: "queued",
+        status: "queued" as const,
         attempt: 1,
         payload: {
           environmentId: (input.environmentId ?? selection.environmentId ?? testCase.environmentId?.toString()) || undefined,
           retryCount: selection.retryCount,
-          browser: selection.browser,
+          browser: matrix.browser,
+          viewport: matrix.viewport,
         },
       })),
     );
-    await this.log(run.id, "info", `Queued ${selection.cases.length} test case(s)`);
+    await this.jobs.insertMany(jobs);
+    await this.log(run.id, "info", `Queued ${jobs.length} job(s)`);
     return this.presentRun(run);
   }
 
@@ -273,6 +276,7 @@ export class TestRunsService implements OnModuleInit, OnModuleDestroy {
       return this.failedResult("ENGINE_ERROR", `No engine is registered for ${job.engineType}`);
     }
     const browser = typeof job.payload.browser === "string" ? job.payload.browser : environment?.settings.browser;
+    const viewport = readViewport(job.payload.viewport);
     const timeoutMs = typeof environment?.settings.timeoutMs === "number" ? environment.settings.timeoutMs : 30000;
     await this.log(run.id, "info", `Started ${testCase.key}`, job.id, testCase.id);
     return engine.execute({
@@ -287,6 +291,7 @@ export class TestRunsService implements OnModuleInit, OnModuleDestroy {
       baseUrl: environment?.baseUrl ?? application?.baseUrl,
       apiBaseUrl: environment?.apiBaseUrl ?? application?.apiBaseUrl,
       browser: typeof browser === "string" ? browser : "chromium",
+      viewport,
       steps: testCase.steps.map((step) => ({
         id: step.id,
         order: step.order,
@@ -328,6 +333,7 @@ export class TestRunsService implements OnModuleInit, OnModuleDestroy {
       artifactIds: savedArtifacts.map((artifact) => artifact._id),
       metrics: outcome.metrics,
       attempt: job.attempt,
+      variant: jobVariant(job.testCaseId?.toString() ?? "", job.payload),
     });
     if (savedArtifacts.length > 0) {
       await this.artifacts.updateMany({ _id: { $in: savedArtifacts.map((artifact) => artifact._id) } }, { resultId: result._id });
@@ -378,7 +384,7 @@ export class TestRunsService implements OnModuleInit, OnModuleDestroy {
       this.results.find({ runId: run._id }).sort({ createdAt: 1 }),
     ]);
     const latest = new Map<string, TestResultDocument>();
-    for (const record of records) latest.set(record.testCaseId.toString(), record);
+    for (const record of records) latest.set(record.variant || record.testCaseId.toString(), record);
     const summary = summarizeResults([...latest.values()].map((record) => record.status), pending);
     run.passed = summary.passed;
     run.failed = summary.failed;
@@ -400,7 +406,7 @@ export class TestRunsService implements OnModuleInit, OnModuleDestroy {
       if (!testCase || testCase.projectId.toString() !== input.projectId) {
         throw new AppException("NOT_FOUND", "Test case not found", HttpStatus.NOT_FOUND);
       }
-      return { cases: [testCase], executionMode: "sequential" as const, retryCount: 0, environmentId: input.environmentId, browser: undefined as string | undefined };
+      return { cases: [testCase], executionMode: "sequential" as const, retryCount: 0, environmentId: input.environmentId, matrices: matrixCombinations() };
     }
     if (input.suiteId) {
       const suite = await this.suites.findById(asObjectId(input.suiteId, "Test suite not found"));
@@ -408,7 +414,7 @@ export class TestRunsService implements OnModuleInit, OnModuleDestroy {
         throw new AppException("NOT_FOUND", "Test suite not found", HttpStatus.NOT_FOUND);
       }
       const cases = await this.orderedCases(input.projectId, suite.testCaseIds.map((id) => id.toString()));
-      return { cases, executionMode: suite.executionMode, retryCount: suite.retryCount, environmentId: input.environmentId, browser: undefined as string | undefined };
+      return { cases, executionMode: suite.executionMode, retryCount: suite.retryCount, environmentId: input.environmentId, matrices: matrixCombinations() };
     }
     const plan = await this.plans.findById(asObjectId(input.planId ?? "", "Test plan not found"));
     if (!plan || plan.projectId.toString() !== input.projectId) {
@@ -417,13 +423,12 @@ export class TestRunsService implements OnModuleInit, OnModuleDestroy {
     const suites = await this.suites.find({ _id: { $in: plan.suiteIds }, projectId: plan.projectId });
     const ids = suites.flatMap((suite) => suite.testCaseIds.map((id) => id.toString()));
     const cases = await this.orderedCases(input.projectId, ids);
-    const browser = plan.browserConfig && typeof plan.browserConfig.browser === "string" ? plan.browserConfig.browser : undefined;
     return {
       cases,
       executionMode: "sequential" as const,
       retryCount: Math.max(0, ...suites.map((suite) => suite.retryCount)),
       environmentId: input.environmentId ?? plan.environmentId.toString(),
-      browser,
+      matrices: matrixCombinations(plan.browserConfig),
     };
   }
 
@@ -496,6 +501,7 @@ export class TestRunsService implements OnModuleInit, OnModuleDestroy {
       error: record.error,
       artifactIds: record.artifactIds.map((id) => id.toString()),
       metrics: record.metrics,
+      variant: record.variant,
       createdAt: record.createdAt.toISOString(),
     };
   }

@@ -269,6 +269,7 @@ export interface TestResult {
   error?: { code: string; message: string };
   artifactIds: string[];
   metrics?: Record<string, number>;
+  variant?: string;
   createdAt: string;
 }
 

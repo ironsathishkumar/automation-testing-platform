@@ -54,6 +54,7 @@ export default function RunDetailPage({ params }: { params: Promise<{ projectId:
         <Typography key={result.id}>
           <Link href={`/projects/${projectId}/test-runs/${runId}/results/${result.id}`}>{result.status}</Link>
           {" · "}
+          {result.variant ? `${result.variant} · ` : ""}
           {result.durationMs} ms
           {result.error ? ` · ${result.error.message}` : ""}
         </Typography>

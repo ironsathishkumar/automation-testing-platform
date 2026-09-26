@@ -1,28 +1,34 @@
 "use client";
 
-import { Chip, Paper, Stack, Typography } from "@mui/material";
+import { Alert, Chip, Paper, Stack, Typography } from "@mui/material";
+import { useQuery } from "@tanstack/react-query";
 import { PageHeader } from "@/components/PageHeader";
+import { api, errorMessage } from "@/lib/api";
 
-const ENGINES = [
-  ["Web", "Playwright actions, screenshots, video, and traces"],
-  ["API", "HTTP requests, auth, and response assertions"],
-  ["Mobile", "Appium on a later phase"],
-  ["Performance", "k6 load profiles on a later phase"],
-  ["Quality", "Accessibility, visual, and responsive checks on a later phase"],
-];
+interface EngineInfo {
+  type: string;
+  actions?: string[];
+  browsers?: string[];
+}
 
 export default function EnginesPage() {
+  const engines = useQuery({ queryKey: ["engines"], queryFn: () => api<EngineInfo[]>("/engines") });
+
   return (
     <>
-      <PageHeader title="Engines" subtitle="Execution adapters are not part of this build yet. Test cases can already store an engine type." />
+      <PageHeader title="Engines" subtitle="Registered adapters that the local worker can run." />
+      {engines.error ? <Alert severity="error">{errorMessage(engines.error)}</Alert> : null}
       <Stack spacing={2}>
-        {ENGINES.map(([name, detail]) => (
-          <Paper key={name} sx={{ p: 2.5, display: "flex", justifyContent: "space-between", gap: 2, alignItems: "center" }}>
+        {(engines.data ?? []).map((engine) => (
+          <Paper key={engine.type} sx={{ p: 2.5, display: "flex", justifyContent: "space-between", gap: 2, alignItems: "center" }}>
             <div>
-              <Typography variant="h6">{name}</Typography>
-              <Typography color="text.secondary">{detail}</Typography>
+              <Typography variant="h6">{engine.type}</Typography>
+              <Typography color="text.secondary">
+                {(engine.actions ?? []).join(", ") || "No actions declared"}
+                {engine.browsers ? ` · ${engine.browsers.join(", ")}` : ""}
+              </Typography>
             </div>
-            <Chip label="Not running yet" />
+            <Chip color="success" label="Registered" />
           </Paper>
         ))}
       </Stack>

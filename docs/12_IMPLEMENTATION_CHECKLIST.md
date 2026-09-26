@@ -80,10 +80,10 @@
 
 ## Quality
 
-- [ ] Accessibility engine
-- [ ] Visual engine
-- [ ] Responsive matrix
-- [ ] Browser matrix
+- [x] Accessibility engine
+- [x] Visual engine
+- [x] Responsive matrix
+- [x] Browser matrix
 
 ## Advanced
 

@@ -12,3 +12,4 @@ coverage/
 storage/artifacts/
 storage/logs/
 storage/reports/
+storage/baselines/

@@ -146,6 +146,9 @@ export class TestResult {
   @Prop({ required: true, default: 1 })
   attempt!: number;
 
+  @Prop()
+  variant?: string;
+
   createdAt!: Date;
 }
 

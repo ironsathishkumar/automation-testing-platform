@@ -15,13 +15,36 @@ import { api, errorMessage } from "@/lib/api";
 
 type FormValues = z.output<typeof createTestPlanSchema>;
 
+const VIEWPORTS = [
+  { name: "Desktop", width: 1280, height: 720 },
+  { name: "Tablet", width: 768, height: 1024 },
+  { name: "Mobile", width: 390, height: 844 },
+];
+
+function storedBrowsers(config?: Record<string, unknown>) {
+  if (Array.isArray(config?.browsers)) {
+    const names = config.browsers.filter((item): item is string => typeof item === "string");
+    if (names.length > 0) return names;
+  }
+  return typeof config?.browser === "string" ? [config.browser] : ["chromium"];
+}
+
+function storedViewports(config?: Record<string, unknown>) {
+  if (!Array.isArray(config?.viewports)) return [];
+  return config.viewports.flatMap((item) => {
+    if (!item || typeof item !== "object" || !("name" in item) || typeof item.name !== "string") return [];
+    return [item.name];
+  });
+}
+
 export function PlansPanel({ projectId }: { projectId: string }) {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<TestPlan | null>(null);
   const [pendingDelete, setPendingDelete] = useState<TestPlan | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
-  const [browser, setBrowser] = useState("chromium");
+  const [browsers, setBrowsers] = useState<string[]>(["chromium"]);
+  const [viewports, setViewports] = useState<string[]>([]);
   const plans = useQuery({ queryKey: ["plans", projectId], queryFn: () => api<TestPlan[]>(`/projects/${projectId}/test-plans`) });
   const suites = useQuery({ queryKey: ["suites", projectId], queryFn: () => api<TestSuite[]>(`/projects/${projectId}/test-suites`) });
   const environments = useQuery({ queryKey: ["environments", projectId], queryFn: () => api<Environment[]>(`/projects/${projectId}/environments`) });
@@ -32,7 +55,8 @@ export function PlansPanel({ projectId }: { projectId: string }) {
 
   function openCreate() {
     setEditing(null);
-    setBrowser("chromium");
+    setBrowsers(["chromium"]);
+    setViewports([]);
     form.reset({ name: "", suiteIds: [], environmentId: "" });
     setFormError(null);
     setOpen(true);
@@ -40,8 +64,8 @@ export function PlansPanel({ projectId }: { projectId: string }) {
 
   function openEdit(plan: TestPlan) {
     setEditing(plan);
-    const storedBrowser = plan.browserConfig && typeof plan.browserConfig.browser === "string" ? plan.browserConfig.browser : "chromium";
-    setBrowser(storedBrowser);
+    setBrowsers(storedBrowsers(plan.browserConfig));
+    setViewports(storedViewports(plan.browserConfig));
     form.reset({ name: plan.name, suiteIds: plan.suiteIds, environmentId: plan.environmentId, browserConfig: plan.browserConfig, variables: plan.variables });
     setFormError(null);
     setOpen(true);
@@ -49,7 +73,13 @@ export function PlansPanel({ projectId }: { projectId: string }) {
 
   const save = useMutation({
     mutationFn: (values: FormValues) => {
-      const payload = { ...values, browserConfig: { browser } };
+      const payload = {
+        ...values,
+        browserConfig: {
+          browsers,
+          viewports: VIEWPORTS.filter((viewport) => viewports.includes(viewport.name)).map(({ name, width, height }) => ({ name, width, height })),
+        },
+      };
       const path = editing ? `/test-plans/${editing.id}` : `/projects/${projectId}/test-plans`;
       return api(path, { method: editing ? "PATCH" : "POST", body: JSON.stringify(payload) });
     },
@@ -74,7 +104,7 @@ export function PlansPanel({ projectId }: { projectId: string }) {
 
   return (
     <>
-      <PageHeader title="Test plans" subtitle="Choose suites, an environment, and a browser for a future run." action={<Button variant="contained" onClick={openCreate}>Add plan</Button>} />
+      <PageHeader title="Test plans" subtitle="Choose suites, an environment, browsers, and viewports. A run queues one job for each combination." action={<Button variant="contained" onClick={openCreate}>Add plan</Button>} />
       {plans.error ? <Alert severity="error">{errorMessage(plans.error)}</Alert> : null}
       {plans.data?.length === 0 ? <EmptyState title="No plans" body="A plan ties suites to one environment." /> : null}
       {plans.data && plans.data.length > 0 ? (
@@ -113,9 +143,22 @@ export function PlansPanel({ projectId }: { projectId: string }) {
               <TextField select label="Environment" value={form.watch("environmentId")} onChange={(event) => form.setValue("environmentId", event.target.value)} error={Boolean(form.formState.errors.environmentId)} helperText={form.formState.errors.environmentId?.message}>
                 {(environments.data ?? []).map((environment) => <MenuItem key={environment.id} value={environment.id}>{environment.name}</MenuItem>)}
               </TextField>
-              <TextField select label="Browser" value={browser} onChange={(event) => setBrowser(event.target.value)}>
-                {["chromium", "firefox", "webkit"].map((name) => <MenuItem key={name} value={name}>{name}</MenuItem>)}
-              </TextField>
+              <Typography variant="subtitle2">Browsers</Typography>
+              {["chromium", "firefox", "webkit"].map((name) => (
+                <FormControlLabel
+                  key={name}
+                  control={<Checkbox checked={browsers.includes(name)} onChange={(_, checked) => setBrowsers(checked ? [...browsers, name] : browsers.filter((item) => item !== name))} />}
+                  label={name}
+                />
+              ))}
+              <Typography variant="subtitle2">Viewports</Typography>
+              {VIEWPORTS.map((viewport) => (
+                <FormControlLabel
+                  key={viewport.name}
+                  control={<Checkbox checked={viewports.includes(viewport.name)} onChange={(_, checked) => setViewports(checked ? [...viewports, viewport.name] : viewports.filter((item) => item !== viewport.name))} />}
+                  label={`${viewport.name} ${viewport.width}×${viewport.height}`}
+                />
+              ))}
               <Typography variant="subtitle2">Suites</Typography>
               {(suites.data ?? []).map((suite) => (
                 <FormControlLabel
@@ -133,7 +176,7 @@ export function PlansPanel({ projectId }: { projectId: string }) {
           </DialogContent>
           <DialogActions>
             <Button onClick={() => setOpen(false)}>Cancel</Button>
-            <Button type="submit" variant="contained" disabled={save.isPending}>Save</Button>
+            <Button type="submit" variant="contained" disabled={save.isPending || browsers.length === 0}>Save</Button>
           </DialogActions>
         </Stack>
       </Dialog>
