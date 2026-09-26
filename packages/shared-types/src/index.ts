@@ -213,6 +213,21 @@ export interface TestPlan {
   updatedAt: string;
 }
 
+export const PROJECT_FILE_CATEGORIES = ["requirements", "test-cases", "design", "other"] as const;
+export type ProjectFileCategory = (typeof PROJECT_FILE_CATEGORIES)[number];
+
+export interface ProjectFile {
+  id: string;
+  projectId: string;
+  fileName: string;
+  category: ProjectFileCategory;
+  note: string;
+  mimeType: string;
+  sizeBytes: number;
+  uploadedBy: string;
+  createdAt: string;
+}
+
 export interface DashboardSummary {
   projectCount: number;
   activeProjectCount: number;

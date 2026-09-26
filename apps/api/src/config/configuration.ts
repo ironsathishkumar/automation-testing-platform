@@ -16,6 +16,7 @@ const envSchema = z.object({
     .transform((value) => value === "true"),
   ARTIFACT_ROOT: z.string().default("storage/artifacts"),
   LOG_ROOT: z.string().default("storage/logs"),
+  DOCUMENT_ROOT: z.string().default("storage/documents"),
   WEB_ORIGIN: z.string().default("http://localhost:3000"),
 });
 
@@ -42,5 +43,6 @@ export function loadAppConfig(source: NodeJS.ProcessEnv = process.env): AppConfi
     webOrigins: webOrigins.length > 0 ? webOrigins : ["http://localhost:3000"],
     ARTIFACT_ROOT: path.resolve(repoRoot, parsed.ARTIFACT_ROOT),
     LOG_ROOT: path.resolve(repoRoot, parsed.LOG_ROOT),
+    DOCUMENT_ROOT: path.resolve(repoRoot, parsed.DOCUMENT_ROOT),
   };
 }

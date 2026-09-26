@@ -10,6 +10,7 @@ import { api } from "@/lib/api";
 
 const LINKS = [
   { suffix: "", label: "Overview" },
+  { suffix: "/documents", label: "Documents" },
   { suffix: "/test-cases", label: "Test cases" },
   { suffix: "/test-suites", label: "Suites" },
   { suffix: "/test-plans", label: "Plans" },

@@ -5,6 +5,7 @@ import { createEnvironmentSchema } from "@atp/validation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Alert, Button, Checkbox, Dialog, DialogActions, DialogContent, DialogTitle, FormControlLabel, IconButton, MenuItem, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from "@mui/material";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
+import UploadFileIcon from "@mui/icons-material/UploadFile";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
@@ -12,8 +13,11 @@ import { z } from "zod";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { EmptyState, PageHeader } from "@/components/PageHeader";
 import { api, errorMessage } from "@/lib/api";
+import { parseEnvFile } from "@/lib/env-file";
 
 type FormValues = z.output<typeof createEnvironmentSchema>;
+
+const MAX_VARIABLES = 50;
 
 const shrink = { inputLabel: { shrink: true } };
 
@@ -44,11 +48,46 @@ export function EnvironmentsPanel({ projectId }: { projectId: string }) {
   });
   const form = useForm<z.input<typeof createEnvironmentSchema>, unknown, FormValues>({ resolver: zodResolver(createEnvironmentSchema), defaultValues: emptyValues() });
   const variables = useFieldArray({ control: form.control, name: "variables" });
+  const [importNote, setImportNote] = useState<{ severity: "success" | "warning" | "error"; text: string } | null>(null);
+
+  async function importFile(file: File | undefined) {
+    if (!file) return;
+    if (file.size > 256 * 1024) {
+      setImportNote({ severity: "error", text: "That file is too large. Environment files must be under 256 KB." });
+      return;
+    }
+    const { variables: parsed, skipped } = parseEnvFile(await file.text());
+    if (parsed.length === 0) {
+      setImportNote({ severity: "error", text: `No KEY=VALUE lines found in ${file.name}.` });
+      return;
+    }
+    const merged = [...(form.getValues("variables") ?? [])];
+    let added = 0;
+    let updated = 0;
+    for (const item of parsed) {
+      const existing = merged.findIndex((variable) => variable.key === item.key);
+      if (existing >= 0) {
+        merged[existing] = { ...merged[existing], value: item.value, isSecret: Boolean(merged[existing].isSecret) || item.isSecret };
+        updated += 1;
+      } else if (merged.length < MAX_VARIABLES) {
+        merged.push(item);
+        added += 1;
+      }
+    }
+    variables.replace(merged);
+    const dropped = parsed.length - added - updated;
+    const parts = [`Imported from ${file.name}: ${added} added, ${updated} updated.`];
+    if (skipped.length > 0) parts.push(`Skipped line${skipped.length === 1 ? "" : "s"} ${skipped.slice(0, 10).join(", ")}${skipped.length > 10 ? "…" : ""} (not KEY=VALUE).`);
+    if (dropped > 0) parts.push(`${dropped} not added: an environment holds at most ${MAX_VARIABLES} variables.`);
+    parts.push("Review the Secret ticks, then Save.");
+    setImportNote({ severity: skipped.length > 0 || dropped > 0 ? "warning" : "success", text: parts.join(" ") });
+  }
 
   function openCreate() {
     setEditing(null);
     form.reset(emptyValues());
     setFormError(null);
+    setImportNote(null);
     setOpen(true);
   }
 
@@ -66,6 +105,7 @@ export function EnvironmentsPanel({ projectId }: { projectId: string }) {
       },
     });
     setFormError(null);
+    setImportNote(null);
     setOpen(true);
   }
 
@@ -186,8 +226,26 @@ export function EnvironmentsPanel({ projectId }: { projectId: string }) {
                     Write {"{{NAME}}"} in any step to insert the value, for example {"{{USER_PASSWORD}}"} in a “Type text” step.
                   </Typography>
                 </div>
-                <Button onClick={() => variables.append({ key: "", value: "", isSecret: false })}>Add variable</Button>
+                <Stack direction="row" spacing={1} sx={{ flexShrink: 0 }}>
+                  <Button component="label" startIcon={<UploadFileIcon />}>
+                    Upload .env / .txt
+                    <input
+                      hidden
+                      type="file"
+                      accept=".env,.txt,.properties,text/plain"
+                      onChange={(event) => {
+                        void importFile(event.target.files?.[0]);
+                        event.target.value = "";
+                      }}
+                    />
+                  </Button>
+                  <Button onClick={() => variables.append({ key: "", value: "", isSecret: false })}>Add variable</Button>
+                </Stack>
               </Stack>
+              <Typography variant="caption" color="text.secondary">
+                File format: one KEY=VALUE per line, for example USER_EMAIL=asha@example.com. Lines starting with # are ignored. Keys that look like passwords or tokens are ticked as Secret automatically.
+              </Typography>
+              {importNote ? <Alert severity={importNote.severity} onClose={() => setImportNote(null)}>{importNote.text}</Alert> : null}
               {variables.fields.map((field, index) => (
                 <Stack key={field.id} direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ alignItems: { sm: "center" } }}>
                   <TextField

@@ -3,7 +3,7 @@
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import { Alert, Box, Button, Chip, Grid, Paper, Stack, Typography } from "@mui/material";
-import { Application, ProjectDetail, TestRun } from "@atp/shared-types";
+import { Application, ProjectDetail, ProjectFile, TestRun } from "@atp/shared-types";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { use } from "react";
@@ -18,6 +18,7 @@ export default function ProjectOverviewPage({ params }: { params: Promise<{ proj
   });
   const applications = useQuery({ queryKey: ["applications", projectId], queryFn: () => api<Application[]>(`/projects/${projectId}/applications`) });
   const runs = useQuery({ queryKey: ["runs", projectId], queryFn: () => api<TestRun[]>(`/test-runs?projectId=${projectId}`) });
+  const documents = useQuery({ queryKey: ["project-files", projectId], queryFn: () => api<ProjectFile[]>(`/projects/${projectId}/files`) });
 
   if (project.error) return <Alert severity="error">{errorMessage(project.error)}</Alert>;
   if (!project.data) return null;
@@ -26,6 +27,14 @@ export default function ProjectOverviewPage({ params }: { params: Promise<{ proj
   const target = applications.data?.[0];
   const lastRun = runs.data?.[0];
   const steps = [
+    {
+      done: (documents.data?.length ?? 0) > 0,
+      title: "Collect the client's material",
+      body: target?.repository?.url
+        ? `Repository: ${target.repository.url}. Upload the requirement documents or test sheets you received.`
+        : "Upload requirement documents or test sheets they shared. Add the repository link in Settings.",
+      action: <Button component={Link} href={`${base}/documents`}>Documents</Button>,
+    },
     {
       done: counts.applications > 0,
       title: "Set the website or API URL",

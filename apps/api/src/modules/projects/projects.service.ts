@@ -1,14 +1,18 @@
+import { rm } from "node:fs/promises";
 import { HttpStatus, Injectable } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import { InjectModel } from "@nestjs/mongoose";
 import { CreateProjectInput, UpdateProjectInput } from "@atp/validation";
 import { Project as ProjectView, ProjectDetail } from "@atp/shared-types";
 import { Model, Types } from "mongoose";
 import { AppException } from "../../common/app.exception";
 import { asObjectId, isDuplicateKey } from "../../common/ids";
+import { resolveInside } from "../../common/safe-path";
 import { toResourceKey } from "../../common/slug";
 import { AuditService } from "../audit/audit.service";
 import { Application } from "../applications/application.schema";
 import { Environment } from "../environments/environment.schema";
+import { ProjectFile } from "../project-files/project-file.schema";
 import { TestCase } from "../test-cases/test-case.schema";
 import { TestPlan } from "../test-plans/test-plan.schema";
 import { TestSuite } from "../test-suites/test-suite.schema";
@@ -23,7 +27,9 @@ export class ProjectsService {
     @InjectModel(TestCase.name) private readonly testCases: Model<TestCase>,
     @InjectModel(TestSuite.name) private readonly testSuites: Model<TestSuite>,
     @InjectModel(TestPlan.name) private readonly testPlans: Model<TestPlan>,
+    @InjectModel(ProjectFile.name) private readonly projectFiles: Model<ProjectFile>,
     private readonly audit: AuditService,
+    private readonly config: ConfigService,
   ) {}
 
   async list(): Promise<ProjectView[]> {
@@ -101,7 +107,9 @@ export class ProjectsService {
       this.testCases.deleteMany({ projectId }),
       this.testSuites.deleteMany({ projectId }),
       this.testPlans.deleteMany({ projectId }),
+      this.projectFiles.deleteMany({ projectId }),
     ]);
+    await rm(resolveInside(this.config.getOrThrow<string>("DOCUMENT_ROOT"), projectId.toString()), { recursive: true, force: true });
     await project.deleteOne();
     await this.audit.record({
       userId,

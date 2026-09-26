@@ -8,6 +8,7 @@ import { AuthModule } from "./modules/auth/auth.module";
 import { DashboardModule } from "./modules/dashboard/dashboard.module";
 import { EnvironmentsModule } from "./modules/environments/environments.module";
 import { HealthModule } from "./modules/health/health.module";
+import { ProjectFilesModule } from "./modules/project-files/project-files.module";
 import { ProjectsModule } from "./modules/projects/projects.module";
 import { TestCasesModule } from "./modules/test-cases/test-cases.module";
 import { TestPlansModule } from "./modules/test-plans/test-plans.module";
@@ -23,6 +24,7 @@ import { PlatformModule } from "./platform/platform.module";
     HealthModule,
     AuthModule,
     ProjectsModule,
+    ProjectFilesModule,
     ApplicationsModule,
     EnvironmentsModule,
     TestCasesModule,
@@ -42,6 +44,7 @@ export class AppModule implements OnModuleInit {
     const repoRoot = this.config.getOrThrow<string>("repoRoot");
     mkdirSync(artifactRoot, { recursive: true });
     mkdirSync(logRoot, { recursive: true });
+    mkdirSync(this.config.getOrThrow<string>("DOCUMENT_ROOT"), { recursive: true });
     mkdirSync(path.join(repoRoot, "storage", "reports"), { recursive: true });
   }
 }
