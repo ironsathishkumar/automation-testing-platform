@@ -12,8 +12,8 @@ export class TestPlan {
   @Prop({ type: [Types.ObjectId], default: [] })
   suiteIds!: Types.ObjectId[];
 
-  @Prop({ required: true, type: Types.ObjectId })
-  environmentId!: Types.ObjectId;
+  @Prop({ type: Types.ObjectId })
+  environmentId?: Types.ObjectId;
 
   @Prop({ type: Object })
   browserConfig?: Record<string, unknown>;

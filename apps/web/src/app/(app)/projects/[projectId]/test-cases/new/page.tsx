@@ -8,7 +8,7 @@ export default function NewTestCasePage({ params }: { params: Promise<{ projectI
   const { projectId } = use(params);
   return (
     <>
-      <PageHeader title="New test case" subtitle="Choose an application and describe the steps." />
+      <PageHeader title="New test case" subtitle="Name the test, pick a test type, and fill in the steps. Every field shows an example." />
       <TestCaseForm projectId={projectId} />
     </>
   );

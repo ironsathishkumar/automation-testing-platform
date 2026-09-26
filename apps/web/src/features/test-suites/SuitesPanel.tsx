@@ -15,6 +15,8 @@ import { api, errorMessage } from "@/lib/api";
 
 type FormValues = z.output<typeof createTestSuiteSchema>;
 
+const shrink = { inputLabel: { shrink: true } };
+
 export function SuitesPanel({ projectId }: { projectId: string }) {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
@@ -30,6 +32,7 @@ export function SuitesPanel({ projectId }: { projectId: string }) {
 
   function openCreate() {
     setEditing(null);
+    setFormError(null);
     form.reset({ name: "", description: "", testCaseIds: [], executionMode: "sequential", retryCount: 0, tags: [] });
     setOpen(true);
   }
@@ -72,15 +75,19 @@ export function SuitesPanel({ projectId }: { projectId: string }) {
 
   return (
     <>
-      <PageHeader title="Test suites" subtitle="Group cases and choose sequential or parallel execution." action={<Button variant="contained" onClick={openCreate}>Add suite</Button>} />
+      <PageHeader
+        title="Test suites"
+        subtitle="Optional. A suite is a named group of test cases you run together with one click, for example “Smoke tests” or “Checkout flow”."
+        action={<Button variant="contained" onClick={openCreate}>Add suite</Button>}
+      />
       {suites.error ? <Alert severity="error">{errorMessage(suites.error)}</Alert> : null}
-      {suites.data?.length === 0 ? <EmptyState title="No suites" body="Group ready test cases into a suite." /> : null}
+      {suites.data?.length === 0 ? <EmptyState title="No suites" body="You can run test cases one by one without a suite. Create one when you want to run several cases together." /> : null}
       {suites.data && suites.data.length > 0 ? (
         <Table>
           <TableHead>
             <TableRow>
               <TableCell>Name</TableCell>
-              <TableCell>Mode</TableCell>
+              <TableCell>Run order</TableCell>
               <TableCell>Cases</TableCell>
               <TableCell>Retries</TableCell>
               <TableCell align="right">Actions</TableCell>
@@ -90,7 +97,7 @@ export function SuitesPanel({ projectId }: { projectId: string }) {
             {suites.data.map((suite) => (
               <TableRow key={suite.id}>
                 <TableCell>{suite.name}</TableCell>
-                <TableCell>{suite.executionMode}</TableCell>
+                <TableCell>{suite.executionMode === "parallel" ? "Parallel" : "One by one"}</TableCell>
                 <TableCell>{suite.testCaseIds.length}</TableCell>
                 <TableCell>{suite.retryCount}</TableCell>
                 <TableCell align="right">
@@ -109,13 +116,38 @@ export function SuitesPanel({ projectId }: { projectId: string }) {
           <DialogContent>
             <Stack spacing={2}>
               {formError ? <Alert severity="error">{formError}</Alert> : null}
-              <TextField label="Name" {...form.register("name")} error={Boolean(form.formState.errors.name)} helperText={form.formState.errors.name?.message} />
-              <TextField label="Description" multiline minRows={2} {...form.register("description")} />
-              <TextField select label="Execution" value={form.watch("executionMode")} onChange={(event) => form.setValue("executionMode", event.target.value as FormValues["executionMode"])}>
-                {EXECUTION_MODES.map((mode) => <MenuItem key={mode} value={mode}>{mode}</MenuItem>)}
-              </TextField>
-              <TextField label="Retries" type="number" {...form.register("retryCount", { valueAsNumber: true })} />
-              <Typography variant="subtitle2">Test cases</Typography>
+              <TextField
+                label="Name"
+                placeholder="Smoke tests"
+                slotProps={shrink}
+                {...form.register("name")}
+                error={Boolean(form.formState.errors.name)}
+                helperText={form.formState.errors.name?.message}
+              />
+              <TextField label="Description (optional)" placeholder="Quick checks to run after every deploy." slotProps={shrink} multiline minRows={2} {...form.register("description")} />
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                <TextField
+                  select
+                  fullWidth
+                  label="Run order"
+                  value={form.watch("executionMode")}
+                  onChange={(event) => form.setValue("executionMode", event.target.value as FormValues["executionMode"])}
+                  helperText={form.watch("executionMode") === "parallel" ? "Up to two cases at a time. Faster, but cases must not depend on each other." : "One after another, in the order ticked below."}
+                >
+                  {EXECUTION_MODES.map((mode) => <MenuItem key={mode} value={mode}>{mode === "parallel" ? "Parallel" : "One by one"}</MenuItem>)}
+                </TextField>
+                <TextField
+                  fullWidth
+                  label="Retries on failure"
+                  type="number"
+                  placeholder="0"
+                  slotProps={{ ...shrink, htmlInput: { min: 0, max: 5 } }}
+                  {...form.register("retryCount", { valueAsNumber: true })}
+                  error={Boolean(form.formState.errors.retryCount)}
+                  helperText={form.formState.errors.retryCount?.message ?? "0–5. Re-runs a failed case before marking it failed."}
+                />
+              </Stack>
+              <Typography variant="subtitle2">Test cases to include</Typography>
               {(cases.data ?? []).map((testCase) => (
                 <FormControlLabel
                   key={testCase.id}

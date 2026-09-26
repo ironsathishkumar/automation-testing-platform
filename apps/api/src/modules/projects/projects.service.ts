@@ -57,6 +57,15 @@ export class ProjectsService {
         status: "active",
         createdBy: new Types.ObjectId(userId),
       });
+      if (input.baseUrl || input.apiBaseUrl) {
+        await this.applications.create({
+          projectId: project._id,
+          name: input.name,
+          type: input.baseUrl ? "web" : "api",
+          baseUrl: input.baseUrl,
+          apiBaseUrl: input.apiBaseUrl,
+        });
+      }
       return this.present(project);
     } catch (error) {
       if (isDuplicateKey(error)) {

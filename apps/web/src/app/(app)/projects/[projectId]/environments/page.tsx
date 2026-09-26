@@ -1,9 +1,6 @@
-"use client";
+import { redirect } from "next/navigation";
 
-import { use } from "react";
-import { EnvironmentsPanel } from "@/features/environments/EnvironmentsPanel";
-
-export default function EnvironmentsPage({ params }: { params: Promise<{ projectId: string }> }) {
-  const { projectId } = use(params);
-  return <EnvironmentsPanel projectId={projectId} />;
+export default async function EnvironmentsPage({ params }: { params: Promise<{ projectId: string }> }) {
+  const { projectId } = await params;
+  redirect(`/projects/${projectId}/settings`);
 }

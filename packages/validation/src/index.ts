@@ -58,6 +58,8 @@ export const createProjectSchema = z.object({
     .optional()
     .transform((value) => (value ? value : undefined)),
   description: z.string().trim().max(2000).optional().default(""),
+  baseUrl: optionalUrl,
+  apiBaseUrl: optionalUrl,
 });
 
 export const updateProjectSchema = z.object({
@@ -159,13 +161,18 @@ export const updateTestSuiteSchema = createTestSuiteSchema.partial();
 
 export const createTestPlanSchema = z.object({
   name: z.string().trim().min(2).max(160),
-  suiteIds: z.array(objectId).min(1).max(100),
-  environmentId: objectId,
+  suiteIds: z.array(objectId).min(1, "Choose at least one suite").max(100),
+  environmentId: z
+    .union([objectId, z.literal("")])
+    .optional()
+    .transform((value) => value || undefined),
   browserConfig: z.record(z.string(), z.unknown()).optional(),
   variables: z.record(z.string(), z.unknown()).optional(),
 });
 
-export const updateTestPlanSchema = createTestPlanSchema.partial();
+export const updateTestPlanSchema = createTestPlanSchema.partial().extend({
+  environmentId: z.union([objectId, z.literal(""), z.null()]).optional(),
+});
 
 export const aiPromptSchema = z.object({
   prompt: z.string().trim().min(2).max(4000),

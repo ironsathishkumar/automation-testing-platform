@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { use } from "react";
 import { EmptyState, PageHeader } from "@/components/PageHeader";
+import { ENGINE_GUIDE } from "@/features/test-cases/engine-guide";
 import { RunButton } from "@/features/test-runs/RunButton";
 import { api, errorMessage } from "@/lib/api";
 import { Alert } from "@mui/material";
@@ -21,18 +22,24 @@ export default function TestCasesPage({ params }: { params: Promise<{ projectId:
     <>
       <PageHeader
         title="Test cases"
-        subtitle="Define steps, then run them with the engine selected on the case."
+        subtitle="Each test case is one check. Press Run to execute it on this machine."
         action={<Button variant="contained" component={Link} href={`/projects/${projectId}/test-cases/new`}>New test case</Button>}
       />
       {cases.error ? <Alert severity="error">{errorMessage(cases.error)}</Alert> : null}
-      {cases.data?.length === 0 ? <EmptyState title="No test cases" body="Create a case with an application, engine, and steps." /> : null}
+      {cases.data?.length === 0 ? (
+        <EmptyState
+          title="No test cases yet"
+          body="Start with a simple web test: open a page and check something is visible."
+          action={<Button variant="contained" component={Link} href={`/projects/${projectId}/test-cases/new`}>New test case</Button>}
+        />
+      ) : null}
       {cases.data && cases.data.length > 0 ? (
         <Table>
           <TableHead>
             <TableRow>
               <TableCell>Key</TableCell>
               <TableCell>Title</TableCell>
-              <TableCell>Engine</TableCell>
+              <TableCell>Test type</TableCell>
               <TableCell>Priority</TableCell>
               <TableCell>Status</TableCell>
               <TableCell align="right">Run</TableCell>
@@ -45,7 +52,7 @@ export default function TestCasesPage({ params }: { params: Promise<{ projectId:
                 <TableCell>
                   <Link href={`/projects/${projectId}/test-cases/${testCase.id}`}>{testCase.title}</Link>
                 </TableCell>
-                <TableCell>{testCase.engineType}</TableCell>
+                <TableCell>{ENGINE_GUIDE[testCase.engineType].label}</TableCell>
                 <TableCell>{testCase.priority}</TableCell>
                 <TableCell><Chip size="small" label={testCase.status} /></TableCell>
                 <TableCell align="right"><RunButton projectId={projectId} testCaseId={testCase.id} /></TableCell>

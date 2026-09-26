@@ -36,7 +36,7 @@ export class TestPlansService {
       projectId: asObjectId(projectId),
       name: input.name,
       suiteIds: input.suiteIds.map((id) => asObjectId(id)),
-      environmentId: asObjectId(input.environmentId),
+      environmentId: input.environmentId ? asObjectId(input.environmentId) : undefined,
       browserConfig: input.browserConfig,
       variables: input.variables,
     });
@@ -49,12 +49,12 @@ export class TestPlansService {
     if (input.environmentId || input.suiteIds) {
       await this.assertRelations(
         projectId,
-        input.environmentId ?? record.environmentId.toString(),
+        input.environmentId === undefined ? record.environmentId?.toString() : input.environmentId || undefined,
         input.suiteIds ?? record.suiteIds.map((suiteId) => suiteId.toString()),
       );
     }
     if (input.name !== undefined) record.name = input.name;
-    if (input.environmentId !== undefined) record.environmentId = asObjectId(input.environmentId);
+    if (input.environmentId !== undefined) record.environmentId = input.environmentId ? asObjectId(input.environmentId) : undefined;
     if (input.suiteIds !== undefined) record.suiteIds = input.suiteIds.map((suiteId) => asObjectId(suiteId));
     if (input.browserConfig !== undefined) record.browserConfig = input.browserConfig;
     if (input.variables !== undefined) record.variables = input.variables;
@@ -68,9 +68,9 @@ export class TestPlansService {
     return { deleted: true };
   }
 
-  private async assertRelations(projectId: string, environmentId: string, suiteIds: string[]) {
+  private async assertRelations(projectId: string, environmentId: string | undefined, suiteIds: string[]) {
     await this.projects.ensure(projectId);
-    await this.environments.ensureInProject(environmentId, projectId);
+    if (environmentId) await this.environments.ensureInProject(environmentId, projectId);
     await this.suites.ensureIds(projectId, suiteIds);
   }
 
@@ -88,7 +88,7 @@ export class TestPlansService {
       projectId: record.projectId.toString(),
       name: record.name,
       suiteIds: record.suiteIds.map((id) => id.toString()),
-      environmentId: record.environmentId.toString(),
+      environmentId: record.environmentId?.toString(),
       browserConfig: record.browserConfig,
       variables: record.variables,
       createdAt: record.createdAt.toISOString(),

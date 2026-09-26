@@ -15,6 +15,14 @@ import { api, errorMessage } from "@/lib/api";
 
 type FormValues = z.output<typeof createEnvironmentSchema>;
 
+const shrink = { inputLabel: { shrink: true } };
+
+const BROWSERS = [
+  { value: "chromium", label: "Chrome (Chromium)" },
+  { value: "firefox", label: "Firefox" },
+  { value: "webkit", label: "Safari (WebKit)" },
+];
+
 const emptyValues = (): z.input<typeof createEnvironmentSchema> => ({
   name: "",
   type: "local",
@@ -85,15 +93,22 @@ export function EnvironmentsPanel({ projectId }: { projectId: string }) {
 
   return (
     <>
-      <PageHeader title="Environments" subtitle="URLs, variables, and secrets for a target environment." action={<Button variant="contained" onClick={openCreate}>Add environment</Button>} />
+      <PageHeader
+        title="Environments (optional)"
+        subtitle="Only needed if you test the same site on several servers (dev, QA, staging) or need variables and secrets such as passwords or API tokens."
+        action={<Button variant="outlined" onClick={openCreate}>Add environment</Button>}
+      />
       {records.error ? <Alert severity="error">{errorMessage(records.error)}</Alert> : null}
-      {records.data?.length === 0 ? <EmptyState title="No environments" body="Add local, dev, QA, or a custom target before planning a run." /> : null}
+      {records.data?.length === 0 ? (
+        <EmptyState title="No environments" body="Tests use the website URL above by default. Add an environment to override the URL or store values like {{USER_PASSWORD}}." />
+      ) : null}
       {records.data && records.data.length > 0 ? (
         <Table>
           <TableHead>
             <TableRow>
               <TableCell>Name</TableCell>
-              <TableCell>Type</TableCell>
+              <TableCell>Stage</TableCell>
+              <TableCell>URL</TableCell>
               <TableCell>Variables</TableCell>
               <TableCell align="right">Actions</TableCell>
             </TableRow>
@@ -103,6 +118,7 @@ export function EnvironmentsPanel({ projectId }: { projectId: string }) {
               <TableRow key={environment.id}>
                 <TableCell>{environment.name}</TableCell>
                 <TableCell>{environment.type}</TableCell>
+                <TableCell>{environment.baseUrl || environment.apiBaseUrl || "Project URL"}</TableCell>
                 <TableCell>{environment.variables.length}</TableCell>
                 <TableCell align="right">
                   <Button size="small" onClick={() => openEdit(environment)}>Edit</Button>
@@ -119,25 +135,74 @@ export function EnvironmentsPanel({ projectId }: { projectId: string }) {
           <DialogContent>
             <Stack spacing={2}>
               {formError ? <Alert severity="error">{formError}</Alert> : null}
-              <TextField label="Name" {...form.register("name")} error={Boolean(form.formState.errors.name)} helperText={form.formState.errors.name?.message} />
-              <TextField select label="Type" value={form.watch("type")} onChange={(event) => form.setValue("type", event.target.value as FormValues["type"])}>
-                {ENVIRONMENT_TYPES.map((type) => <MenuItem key={type} value={type}>{type}</MenuItem>)}
-              </TextField>
-              <TextField label="Base URL" {...form.register("baseUrl")} />
-              <TextField label="API base URL" {...form.register("apiBaseUrl")} />
-              <TextField label="Browser" {...form.register("settings.browser")} />
-              <TextField label="Timeout (ms)" type="number" {...form.register("settings.timeoutMs", { valueAsNumber: true })} />
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                <TextField
+                  label="Name"
+                  placeholder="QA server"
+                  slotProps={shrink}
+                  fullWidth
+                  {...form.register("name")}
+                  error={Boolean(form.formState.errors.name)}
+                  helperText={form.formState.errors.name?.message ?? "Shown when choosing where to run."}
+                />
+                <TextField select label="Stage" value={form.watch("type")} onChange={(event) => form.setValue("type", event.target.value as FormValues["type"])} sx={{ minWidth: 160 }} helperText="For your reference.">
+                  {ENVIRONMENT_TYPES.map((type) => <MenuItem key={type} value={type}>{type}</MenuItem>)}
+                </TextField>
+              </Stack>
+              <TextField
+                label="Website URL"
+                placeholder="https://qa.example.com"
+                slotProps={shrink}
+                {...form.register("baseUrl")}
+                error={Boolean(form.formState.errors.baseUrl)}
+                helperText={form.formState.errors.baseUrl?.message ?? "Leave empty to use the project's website URL."}
+              />
+              <TextField
+                label="API URL"
+                placeholder="https://qa-api.example.com"
+                slotProps={shrink}
+                {...form.register("apiBaseUrl")}
+                error={Boolean(form.formState.errors.apiBaseUrl)}
+                helperText={form.formState.errors.apiBaseUrl?.message ?? "Leave empty to use the project's API URL."}
+              />
+              <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
+                <TextField select fullWidth label="Default browser" value={form.watch("settings.browser") ?? "chromium"} onChange={(event) => form.setValue("settings.browser", event.target.value)} helperText="Used when a plan does not pick browsers.">
+                  {BROWSERS.map((browser) => <MenuItem key={browser.value} value={browser.value}>{browser.label}</MenuItem>)}
+                </TextField>
+                <TextField
+                  fullWidth
+                  label="Step timeout (ms)"
+                  type="number"
+                  placeholder="30000"
+                  slotProps={shrink}
+                  {...form.register("settings.timeoutMs", { valueAsNumber: true })}
+                  helperText="How long a step may wait. 30000 = 30 seconds."
+                />
+              </Stack>
               <Stack direction="row" sx={{ justifyContent: "space-between", alignItems: "center" }}>
-                <Typography variant="subtitle1">Variables</Typography>
+                <div>
+                  <Typography variant="subtitle1">Variables</Typography>
+                  <Typography variant="body2" color="text.secondary">
+                    Write {"{{NAME}}"} in any step to insert the value, for example {"{{USER_PASSWORD}}"} in a “Type text” step.
+                  </Typography>
+                </div>
                 <Button onClick={() => variables.append({ key: "", value: "", isSecret: false })}>Add variable</Button>
               </Stack>
               {variables.fields.map((field, index) => (
                 <Stack key={field.id} direction={{ xs: "column", sm: "row" }} spacing={1} sx={{ alignItems: { sm: "center" } }}>
-                  <TextField label="Key" {...form.register(`variables.${index}.key`)} />
+                  <TextField
+                    label="Name"
+                    placeholder="USER_PASSWORD"
+                    slotProps={shrink}
+                    {...form.register(`variables.${index}.key`)}
+                    error={Boolean(form.formState.errors.variables?.[index]?.key)}
+                    helperText={form.formState.errors.variables?.[index]?.key?.message}
+                  />
                   <TextField
                     label="Value"
                     type={form.watch(`variables.${index}.isSecret`) ? "password" : "text"}
-                    placeholder={form.watch(`variables.${index}.value`) === SECRET_MASK ? "Stored secret" : ""}
+                    placeholder={form.watch(`variables.${index}.value`) === SECRET_MASK ? "Stored secret" : "s3cret-Pass!"}
+                    slotProps={shrink}
                     {...form.register(`variables.${index}.value`)}
                     fullWidth
                   />
@@ -146,7 +211,7 @@ export function EnvironmentsPanel({ projectId }: { projectId: string }) {
                 </Stack>
               ))}
               <Typography variant="caption" color="text.secondary">
-                Secret values are masked after save. Leave the mask in place to keep the stored value.
+                Tick Secret for passwords and tokens: they are hidden after saving. Leave the dots in place to keep the stored value. Database tests need a variable named DATABASE_URL.
               </Typography>
             </Stack>
           </DialogContent>

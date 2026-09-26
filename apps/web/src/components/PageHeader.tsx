@@ -22,7 +22,7 @@ export function PageHeader({
           </Typography>
         ) : null}
       </Box>
-      {action}
+      {action ? <Box sx={{ flexShrink: 0 }}>{action}</Box> : null}
     </Stack>
   );
 }

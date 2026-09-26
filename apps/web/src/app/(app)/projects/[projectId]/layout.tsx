@@ -10,12 +10,11 @@ import { api } from "@/lib/api";
 
 const LINKS = [
   { suffix: "", label: "Overview" },
-  { suffix: "/applications", label: "Applications" },
-  { suffix: "/environments", label: "Environments" },
   { suffix: "/test-cases", label: "Test cases" },
   { suffix: "/test-suites", label: "Suites" },
   { suffix: "/test-plans", label: "Plans" },
   { suffix: "/test-runs", label: "Runs" },
+  { suffix: "/settings", label: "Settings" },
 ];
 
 export default function ProjectLayout({

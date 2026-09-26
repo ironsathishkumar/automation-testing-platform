@@ -38,6 +38,14 @@ export const STEP_ACTIONS = [
   "wait",
   "download",
   "screenshot",
+  "securityHeaders",
+  "repeatRequest",
+  "k6",
+  "query",
+  "compareFile",
+  "fileContains",
+  "webhook",
+  "appiumSession",
 ] as const;
 
 export type ProjectStatus = (typeof PROJECT_STATUSES)[number];
@@ -198,7 +206,7 @@ export interface TestPlan {
   projectId: string;
   name: string;
   suiteIds: string[];
-  environmentId: string;
+  environmentId?: string;
   browserConfig?: Record<string, unknown>;
   variables?: Record<string, unknown>;
   createdAt: string;

@@ -427,7 +427,7 @@ export class TestRunsService implements OnModuleInit, OnModuleDestroy {
       cases,
       executionMode: "sequential" as const,
       retryCount: Math.max(0, ...suites.map((suite) => suite.retryCount)),
-      environmentId: input.environmentId ?? plan.environmentId.toString(),
+      environmentId: input.environmentId ?? plan.environmentId?.toString(),
       matrices: matrixCombinations(plan.browserConfig),
     };
   }

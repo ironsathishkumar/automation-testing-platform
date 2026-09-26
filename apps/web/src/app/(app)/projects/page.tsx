@@ -1,11 +1,12 @@
 "use client";
 
-import { Alert, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField } from "@mui/material";
+import { Alert, Button, Chip, Dialog, DialogActions, DialogContent, DialogTitle, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from "@mui/material";
 import { Project } from "@atp/shared-types";
 import { createProjectSchema } from "@atp/validation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -17,22 +18,24 @@ type ProjectForm = z.output<typeof createProjectSchema>;
 
 export default function ProjectsPage() {
   const queryClient = useQueryClient();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<Project | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
   const projects = useQuery({ queryKey: ["projects"], queryFn: () => api<Project[]>("/projects") });
   const form = useForm<z.input<typeof createProjectSchema>, unknown, ProjectForm>({
     resolver: zodResolver(createProjectSchema),
-    defaultValues: { name: "", key: "", description: "" },
+    defaultValues: { name: "", key: "", description: "", baseUrl: "", apiBaseUrl: "" },
   });
 
   const create = useMutation({
     mutationFn: (values: ProjectForm) => api<Project>("/projects", { method: "POST", body: JSON.stringify(values) }),
-    onSuccess: async () => {
+    onSuccess: async (project) => {
       await queryClient.invalidateQueries({ queryKey: ["projects"] });
       await queryClient.invalidateQueries({ queryKey: ["dashboard"] });
       setOpen(false);
       form.reset();
+      router.push(`/projects/${project.id}`);
     },
     onError: (error) => setFormError(errorMessage(error)),
   });
@@ -62,12 +65,12 @@ export default function ProjectsPage() {
     <>
       <PageHeader
         title="Projects"
-        subtitle="Each project holds applications, environments, and tests."
+        subtitle="One project per website or API you want to test."
         action={<Button variant="contained" onClick={() => setOpen(true)}>New project</Button>}
       />
       {projects.error ? <Alert severity="error">{errorMessage(projects.error)}</Alert> : null}
       {projects.data && projects.data.length === 0 ? (
-        <EmptyState title="No projects yet" body="Create a project before adding applications or test cases." action={<Button variant="contained" onClick={() => setOpen(true)}>New project</Button>} />
+        <EmptyState title="No projects yet" body="Create a project with the URL of the site you want to test, then add test cases." action={<Button variant="contained" onClick={() => setOpen(true)}>New project</Button>} />
       ) : null}
       {projects.data && projects.data.length > 0 ? (
         <Table>
@@ -110,9 +113,41 @@ export default function ProjectsPage() {
           <DialogContent>
             <Stack spacing={2}>
               {formError ? <Alert severity="error">{formError}</Alert> : null}
-              <TextField label="Name" {...form.register("name")} error={Boolean(form.formState.errors.name)} helperText={form.formState.errors.name?.message} />
-              <TextField label="Key" placeholder="Generated from the name if empty" {...form.register("key")} />
-              <TextField label="Description" multiline minRows={3} {...form.register("description")} />
+              <TextField
+                label="Project name"
+                placeholder="Checkout"
+                slotProps={{ inputLabel: { shrink: true } }}
+                {...form.register("name")}
+                error={Boolean(form.formState.errors.name)}
+                helperText={form.formState.errors.name?.message ?? "Usually the product or site name."}
+              />
+              <TextField
+                label="Website URL"
+                placeholder="https://staging.example.com"
+                slotProps={{ inputLabel: { shrink: true } }}
+                {...form.register("baseUrl")}
+                error={Boolean(form.formState.errors.baseUrl)}
+                helperText={form.formState.errors.baseUrl?.message ?? "Where browser tests open pages. Steps can then use paths like /login."}
+              />
+              <TextField
+                label="API URL (optional)"
+                placeholder="https://api.example.com"
+                slotProps={{ inputLabel: { shrink: true } }}
+                {...form.register("apiBaseUrl")}
+                error={Boolean(form.formState.errors.apiBaseUrl)}
+                helperText={form.formState.errors.apiBaseUrl?.message ?? "Base URL for API tests. Leave empty if you only test the website."}
+              />
+              <TextField
+                label="Description (optional)"
+                placeholder="Checkout and payment flows for the storefront."
+                slotProps={{ inputLabel: { shrink: true } }}
+                multiline
+                minRows={2}
+                {...form.register("description")}
+              />
+              <Typography variant="caption" color="text.secondary">
+                You can change these URLs or add more sites and environments later in the project&apos;s Settings tab.
+              </Typography>
             </Stack>
           </DialogContent>
           <DialogActions>
