@@ -7,6 +7,7 @@ import { TestCase, TestCaseSchema } from "../test-cases/test-case.schema";
 import { TestPlan, TestPlanSchema } from "../test-plans/test-plan.schema";
 import { TestSuite, TestSuiteSchema } from "../test-suites/test-suite.schema";
 import { ArtifactRecord, ArtifactSchema, ExecutionJob, ExecutionJobSchema, ExecutionLog, ExecutionLogSchema, TestResult, TestResultSchema, TestRun, TestRunSchema } from "./execution.schemas";
+import { ReportsService } from "./reports.service";
 import { TestRunsController } from "./test-runs.controller";
 import { TestRunsService } from "./test-runs.service";
 
@@ -27,7 +28,7 @@ import { TestRunsService } from "./test-runs.service";
     ]),
   ],
   controllers: [TestRunsController],
-  providers: [TestRunsService],
+  providers: [TestRunsService, ReportsService],
   exports: [TestRunsService],
 })
 export class TestRunsModule {}

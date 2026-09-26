@@ -70,13 +70,13 @@
 
 ## Reporting
 
-- [ ] Run summary
-- [ ] Test result detail
-- [ ] Step results
-- [ ] Artifact viewer
-- [ ] Logs
-- [ ] History
-- [ ] Export
+- [x] Run summary
+- [x] Test result detail
+- [x] Step results
+- [x] Artifact viewer
+- [x] Logs
+- [x] History
+- [x] Export
 
 ## Quality
 

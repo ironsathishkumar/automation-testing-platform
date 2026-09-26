@@ -47,6 +47,7 @@ export default function RunDetailPage({ params }: { params: Promise<{ projectId:
         <Button onClick={() => void post("retry")}>Retry failed</Button>
         <Button onClick={() => void post("rerun-failed")}>Re-run failed</Button>
         <Button component={Link} href={`/projects/${projectId}/test-runs`}>Back</Button>
+        <Button onClick={() => void api(`/test-runs/${runId}/report/export`, { method: "POST" })}>Export report</Button>
       </Stack>
       <Typography variant="h6">Results</Typography>
       {(results.data ?? []).map((result) => (
