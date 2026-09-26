@@ -1,5 +1,6 @@
 "use client";
 
+import AutoAwesomeOutlinedIcon from "@mui/icons-material/AutoAwesomeOutlined";
 import DashboardOutlinedIcon from "@mui/icons-material/DashboardOutlined";
 import FolderOutlinedIcon from "@mui/icons-material/FolderOutlined";
 import LogoutOutlinedIcon from "@mui/icons-material/LogoutOutlined";
@@ -19,6 +20,7 @@ const NAV = [
   { href: "/dashboard", label: "Dashboard", icon: <DashboardOutlinedIcon /> },
   { href: "/projects", label: "Projects", icon: <FolderOutlinedIcon /> },
   { href: "/engines", label: "Engines", icon: <ScienceOutlinedIcon /> },
+  { href: "/ai", label: "AI", icon: <AutoAwesomeOutlinedIcon /> },
   { href: "/settings", label: "Settings", icon: <SettingsOutlinedIcon /> },
 ];
 

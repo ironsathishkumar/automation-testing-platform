@@ -100,9 +100,9 @@
 
 ## AI
 
-- [ ] AI provider abstraction
-- [ ] Scenario generation
-- [ ] Test generation
-- [ ] Approval workflow
-- [ ] Failure analysis
-- [ ] Suggestions
+- [x] AI provider abstraction
+- [x] Scenario generation
+- [x] Test generation
+- [x] Approval workflow
+- [x] Failure analysis
+- [x] Suggestions

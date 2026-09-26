@@ -2,6 +2,7 @@ import { mkdirSync } from "node:fs";
 import { Module, OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import path from "node:path";
+import { AiModule } from "./modules/ai/ai.module";
 import { ApplicationsModule } from "./modules/applications/applications.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { DashboardModule } from "./modules/dashboard/dashboard.module";
@@ -28,6 +29,7 @@ import { PlatformModule } from "./platform/platform.module";
     TestSuitesModule,
     TestPlansModule,
     TestRunsModule,
+    AiModule,
     DashboardModule,
   ],
 })

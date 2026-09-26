@@ -167,6 +167,49 @@ export const createTestPlanSchema = z.object({
 
 export const updateTestPlanSchema = createTestPlanSchema.partial();
 
+export const aiPromptSchema = z.object({
+  prompt: z.string().trim().min(2).max(4000),
+});
+
+export const aiTestSchema = aiPromptSchema.extend({
+  applicationId: objectId,
+});
+
+export const generatedScenariosSchema = z.object({
+  scenarios: z
+    .array(
+      z.object({
+        title: z.string().trim().min(2).max(200),
+        objective: z.string().trim().min(2).max(2000),
+      }),
+    )
+    .min(1)
+    .max(8),
+});
+
+export const generatedTestSchema = z.object({
+  title: z.string().trim().min(2).max(200),
+  objective: z.string().trim().max(2000).optional(),
+  engineType: enumOf(ENGINE_TYPES),
+  steps: z
+    .array(
+      z.object({
+        action: enumOf(STEP_ACTIONS),
+        target: z.string().trim().max(500).optional(),
+        value: z.string().trim().max(2000).optional(),
+      }),
+    )
+    .max(30),
+});
+
+export const generatedSuggestionsSchema = z.object({
+  suggestions: z.array(z.string().trim().min(2).max(500)).min(1).max(8),
+});
+
+export const generatedAnalysisSchema = z.object({
+  analysis: z.string().trim().min(2).max(4000),
+});
+
 export const createRunSchema = z
   .object({
     projectId: objectId,
@@ -194,3 +237,5 @@ export type UpdateTestSuiteInput = z.infer<typeof updateTestSuiteSchema>;
 export type CreateTestPlanInput = z.infer<typeof createTestPlanSchema>;
 export type UpdateTestPlanInput = z.infer<typeof updateTestPlanSchema>;
 export type CreateRunInput = z.infer<typeof createRunSchema>;
+export type AiPromptInput = z.infer<typeof aiPromptSchema>;
+export type AiTestInput = z.infer<typeof aiTestSchema>;
