@@ -10,6 +10,7 @@
     "test": "tsx --test src/**/*.test.ts"
   },
   "dependencies": {
+    "@atp/engine-contracts": "0.1.0",
     "@atp/shared-types": "0.1.0",
     "@atp/validation": "0.1.0",
     "@nestjs/common": "^11.1.6",

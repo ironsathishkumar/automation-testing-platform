@@ -10,6 +10,7 @@ import { HealthModule } from "./modules/health/health.module";
 import { ProjectsModule } from "./modules/projects/projects.module";
 import { TestCasesModule } from "./modules/test-cases/test-cases.module";
 import { TestPlansModule } from "./modules/test-plans/test-plans.module";
+import { TestRunsModule } from "./modules/test-runs/test-runs.module";
 import { TestSuitesModule } from "./modules/test-suites/test-suites.module";
 import { PlatformModule } from "./platform/platform.module";
 
@@ -24,6 +25,7 @@ import { PlatformModule } from "./platform/platform.module";
     TestCasesModule,
     TestSuitesModule,
     TestPlansModule,
+    TestRunsModule,
     DashboardModule,
   ],
 })

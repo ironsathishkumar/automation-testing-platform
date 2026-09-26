@@ -9,6 +9,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { RunButton } from "@/features/test-runs/RunButton";
 import { EmptyState, PageHeader } from "@/components/PageHeader";
 import { api, errorMessage } from "@/lib/api";
 
@@ -93,6 +94,7 @@ export function PlansPanel({ projectId }: { projectId: string }) {
                 <TableCell>{environmentName(plan.environmentId)}</TableCell>
                 <TableCell>{plan.suiteIds.length}</TableCell>
                 <TableCell align="right">
+                  <RunButton projectId={projectId} planId={plan.id} />
                   <Button size="small" onClick={() => openEdit(plan)}>Edit</Button>
                   <Button size="small" color="error" onClick={() => setPendingDelete(plan)}>Delete</Button>
                 </TableCell>

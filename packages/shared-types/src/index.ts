@@ -218,3 +218,77 @@ export interface HealthStatus {
   status: "ok";
   mongo: "up" | "down";
 }
+
+export const RUN_STATUSES = ["queued", "running", "passed", "failed", "cancelled", "crashed"] as const;
+export const RESULT_STATUSES = ["passed", "failed", "skipped", "cancelled"] as const;
+export const JOB_STATUSES = ["queued", "running", "completed", "failed", "cancelled"] as const;
+export const ARTIFACT_TYPES = ["screenshot", "video", "trace", "log", "report", "network", "other"] as const;
+
+export type RunStatus = (typeof RUN_STATUSES)[number];
+export type ResultStatus = (typeof RESULT_STATUSES)[number];
+export type JobStatus = (typeof JOB_STATUSES)[number];
+export type ArtifactType = (typeof ARTIFACT_TYPES)[number];
+
+export interface TestRun {
+  id: string;
+  projectId: string;
+  planId?: string;
+  suiteId?: string;
+  status: RunStatus;
+  startedAt?: string;
+  completedAt?: string;
+  durationMs?: number;
+  total: number;
+  passed: number;
+  failed: number;
+  skipped: number;
+  cancelled: number;
+  triggeredBy: string;
+  createdAt: string;
+}
+
+export interface ResultStep {
+  id: string;
+  order: number;
+  action: string;
+  status: ResultStatus;
+  durationMs: number;
+  message?: string;
+  error?: string;
+}
+
+export interface TestResult {
+  id: string;
+  runId: string;
+  testCaseId: string;
+  status: ResultStatus;
+  durationMs: number;
+  steps: ResultStep[];
+  error?: { code: string; message: string };
+  artifactIds: string[];
+  metrics?: Record<string, number>;
+  createdAt: string;
+}
+
+export interface Artifact {
+  id: string;
+  projectId: string;
+  runId: string;
+  resultId?: string;
+  type: ArtifactType;
+  fileName: string;
+  relativePath: string;
+  mimeType: string;
+  sizeBytes: number;
+  createdAt: string;
+}
+
+export interface ExecutionLogEntry {
+  id: string;
+  runId: string;
+  jobId?: string;
+  testCaseId?: string;
+  level: "error" | "warn" | "info" | "debug";
+  message: string;
+  createdAt: string;
+}

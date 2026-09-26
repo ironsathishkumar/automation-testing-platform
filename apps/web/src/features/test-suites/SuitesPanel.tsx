@@ -9,6 +9,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { RunButton } from "@/features/test-runs/RunButton";
 import { EmptyState, PageHeader } from "@/components/PageHeader";
 import { api, errorMessage } from "@/lib/api";
 
@@ -93,6 +94,7 @@ export function SuitesPanel({ projectId }: { projectId: string }) {
                 <TableCell>{suite.testCaseIds.length}</TableCell>
                 <TableCell>{suite.retryCount}</TableCell>
                 <TableCell align="right">
+                  <RunButton projectId={projectId} suiteId={suite.id} />
                   <Button size="small" onClick={() => openEdit(suite)}>Edit</Button>
                   <Button size="small" color="error" onClick={() => setPendingDelete(suite)}>Delete</Button>
                 </TableCell>

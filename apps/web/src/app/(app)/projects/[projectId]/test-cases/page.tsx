@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { use } from "react";
 import { EmptyState, PageHeader } from "@/components/PageHeader";
+import { RunButton } from "@/features/test-runs/RunButton";
 import { api, errorMessage } from "@/lib/api";
 import { Alert } from "@mui/material";
 
@@ -34,6 +35,7 @@ export default function TestCasesPage({ params }: { params: Promise<{ projectId:
               <TableCell>Engine</TableCell>
               <TableCell>Priority</TableCell>
               <TableCell>Status</TableCell>
+              <TableCell align="right">Run</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -46,6 +48,7 @@ export default function TestCasesPage({ params }: { params: Promise<{ projectId:
                 <TableCell>{testCase.engineType}</TableCell>
                 <TableCell>{testCase.priority}</TableCell>
                 <TableCell><Chip size="small" label={testCase.status} /></TableCell>
+                <TableCell align="right"><RunButton projectId={projectId} testCaseId={testCase.id} /></TableCell>
               </TableRow>
             ))}
           </TableBody>

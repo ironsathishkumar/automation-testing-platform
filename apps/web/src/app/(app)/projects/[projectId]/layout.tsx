@@ -15,6 +15,7 @@ const LINKS = [
   { suffix: "/test-cases", label: "Test cases" },
   { suffix: "/test-suites", label: "Suites" },
   { suffix: "/test-plans", label: "Plans" },
+  { suffix: "/test-runs", label: "Runs" },
 ];
 
 export default function ProjectLayout({

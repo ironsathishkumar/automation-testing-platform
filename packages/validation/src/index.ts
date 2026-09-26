@@ -167,6 +167,18 @@ export const createTestPlanSchema = z.object({
 
 export const updateTestPlanSchema = createTestPlanSchema.partial();
 
+export const createRunSchema = z
+  .object({
+    projectId: objectId,
+    planId: objectId.optional(),
+    suiteId: objectId.optional(),
+    testCaseId: objectId.optional(),
+    environmentId: objectId.optional(),
+  })
+  .refine((value) => Boolean(value.planId || value.suiteId || value.testCaseId), {
+    message: "Choose a plan, suite, or test case",
+  });
+
 export type RegisterInput = z.infer<typeof registerSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
 export type CreateProjectInput = z.infer<typeof createProjectSchema>;
@@ -181,3 +193,4 @@ export type CreateTestSuiteInput = z.infer<typeof createTestSuiteSchema>;
 export type UpdateTestSuiteInput = z.infer<typeof updateTestSuiteSchema>;
 export type CreateTestPlanInput = z.infer<typeof createTestPlanSchema>;
 export type UpdateTestPlanInput = z.infer<typeof updateTestPlanSchema>;
+export type CreateRunInput = z.infer<typeof createRunSchema>;

@@ -28,15 +28,15 @@
 
 ## Execution
 
-- [ ] Engine interface
-- [ ] Engine registry
-- [ ] Job model
-- [ ] Local worker
-- [ ] Queue mechanism
-- [ ] State transitions
-- [ ] Cancellation
-- [ ] Retry
-- [ ] Execution logs
+- [x] Engine interface
+- [x] Engine registry
+- [x] Job model
+- [x] Local worker
+- [x] Queue mechanism
+- [x] State transitions
+- [x] Cancellation
+- [x] Retry
+- [x] Execution logs
 
 ## Web
 
