@@ -240,6 +240,12 @@ export interface ProjectFileText {
   sections: DocumentSection[];
 }
 
+export interface GeneratedDocumentTests {
+  source: "sections" | "ai";
+  created: TestCase[];
+  skipped: string[];
+}
+
 export interface DashboardSummary {
   projectCount: number;
   activeProjectCount: number;

@@ -1,6 +1,6 @@
 import { Body, Controller, Get, HttpCode, Param, Post } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
-import { aiDocumentTestsSchema, aiPromptSchema, aiTestSchema } from "@atp/validation";
+import { aiPromptSchema, aiTestSchema, GenerateDocumentTestsInput, generateDocumentTestsSchema } from "@atp/validation";
 import { AuthUser, CurrentUser } from "../../common/current-user.decorator";
 import { ZodValidationPipe } from "../../common/zod-validation.pipe";
 import { AiService } from "./ai.service";
@@ -20,10 +20,10 @@ export class AiController {
     return this.ai.status();
   }
 
-  @Post("files/:id/ai-tests")
+  @Post("files/:id/generate-tests")
   @HttpCode(200)
-  documentTests(@Param("id") id: string, @Body(new ZodValidationPipe(aiDocumentTestsSchema)) body: unknown, @CurrentUser() user: AuthUser) {
-    return this.ai.documentTests(id, (body as { applicationId: string }).applicationId, user.id);
+  generateFromDocument(@Param("id") id: string, @Body(new ZodValidationPipe(generateDocumentTestsSchema)) body: unknown, @CurrentUser() user: AuthUser) {
+    return this.ai.generateFromDocument(id, body as GenerateDocumentTestsInput, user.id);
   }
 
   @Post("projects/:projectId/ai/scenarios")

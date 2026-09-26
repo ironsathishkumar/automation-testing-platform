@@ -3,54 +3,23 @@
 import { Application, ProjectFileText } from "@atp/shared-types";
 import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import EditNoteIcon from "@mui/icons-material/EditNote";
-import { Alert, Box, Button, Chip, CircularProgress, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Alert, Box, Button, Chip, CircularProgress, FormControlLabel, MenuItem, Paper, Stack, Switch, TextField, Typography } from "@mui/material";
+import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useState } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { api, apiUrl, errorMessage } from "@/lib/api";
-
-interface AiStatus {
-  configured: boolean;
-  model: string | null;
-  message: string | null;
-}
-
-interface DraftStep {
-  action: string;
-  target?: string;
-  value?: string;
-}
-
-interface AiDraft {
-  id: string;
-  status: string;
-  output: { title?: string; objective?: string; engineType?: string; steps?: DraftStep[] } | null;
-  createdTestCaseIds: string[];
-}
+import { GenerateResult, useAiStatus, useGenerateTests } from "./generate-tests";
 
 export function DocumentWorkspace({ projectId, fileId }: { projectId: string; fileId: string }) {
-  const queryClient = useQueryClient();
   const [applicationId, setApplicationId] = useState("");
-  const [drafts, setDrafts] = useState<AiDraft[]>([]);
+  const [aiChoice, setUseAi] = useState(true);
   const document = useQuery({ queryKey: ["file-text", fileId], queryFn: () => api<ProjectFileText>(`/files/${fileId}/text`) });
-  const aiStatus = useQuery({ queryKey: ["ai-status"], queryFn: () => api<AiStatus>("/ai/status") });
+  const aiStatus = useAiStatus();
   const applications = useQuery({ queryKey: ["applications", projectId], queryFn: () => api<Application[]>(`/projects/${projectId}/applications`) });
   const selectedApp = applicationId || applications.data?.[0]?.id || "";
-
-  const draft = useMutation({
-    mutationFn: () => api<AiDraft[]>(`/files/${fileId}/ai-tests`, { method: "POST", body: JSON.stringify({ applicationId: selectedApp }) }),
-    onSuccess: (result) => setDrafts(result),
-  });
-
-  const approve = useMutation({
-    mutationFn: (id: string) => api<AiDraft>(`/ai/requests/${id}/approve`, { method: "POST" }),
-    onSuccess: async (updated) => {
-      setDrafts((current) => current.map((item) => (item.id === updated.id ? updated : item)));
-      await queryClient.invalidateQueries({ queryKey: ["test-cases", projectId] });
-      await queryClient.invalidateQueries({ queryKey: ["project", projectId] });
-    },
-  });
+  const useAi = Boolean(aiStatus.data?.configured) && aiChoice;
+  const generate = useGenerateTests(projectId);
 
   if (document.error) {
     return (
@@ -66,12 +35,13 @@ export function DocumentWorkspace({ projectId, fileId }: { projectId: string; fi
   if (!document.data) return <CircularProgress size={24} />;
 
   const { file, sections } = document.data;
+  const writable = sections.filter((section) => section.body.trim().length > 0).length;
 
   return (
     <>
       <PageHeader
         title={file.fileName}
-        subtitle="Read each section and press “Write test case” to create a test for it. The section text stays beside the form while you add steps."
+        subtitle="Press “Generate test cases” to create them all at once, or use “Write test case” on a single section to write one by hand."
         action={
           <Stack direction="row" spacing={1}>
             <Button component={Link} href={`/projects/${projectId}/documents`}>All documents</Button>
@@ -82,54 +52,40 @@ export function DocumentWorkspace({ projectId, fileId }: { projectId: string; fi
 
       <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
         <Stack spacing={1.5}>
-          <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
-            <AutoAwesomeIcon color="primary" fontSize="small" />
-            <Typography variant="subtitle1">Draft test cases with AI (optional)</Typography>
-          </Stack>
-          {aiStatus.data && !aiStatus.data.configured ? (
-            <Alert severity="info">
-              AI drafting is off. {aiStatus.data.message} To use OpenAI, add <code>AI_API_KEY=sk-...</code>. To use a free local model with Ollama, add{" "}
-              <code>AI_BASE_URL=http://localhost:11434/v1</code>, <code>AI_API_KEY=ollama</code>, and <code>AI_MODEL=llama3.1</code>. You can still write test cases from each section below.
-            </Alert>
-          ) : null}
-          {aiStatus.data?.configured ? (
-            <>
+          <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ alignItems: { sm: "center" } }}>
+            <Box sx={{ flex: 1 }}>
+              <Typography variant="subtitle1">Generate test cases from this document</Typography>
               <Typography variant="body2" color="text.secondary">
-                Sends this document to {aiStatus.data.model} and returns up to 8 draft tests. Nothing is saved until you approve a draft, and approved tests start as drafts you can edit.
+                {useAi
+                  ? `${aiStatus.data?.model} reads the document and writes up to 15 test cases with steps. They are saved as drafts for you to review.`
+                  : `Creates one draft test case for each of the ${writable} sections with text, with the requirement and starter steps filled in. Sections already generated are skipped.`}
               </Typography>
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ alignItems: { sm: "center" } }}>
-                {(applications.data?.length ?? 0) > 1 ? (
-                  <TextField select size="small" label="Application" value={selectedApp} onChange={(event) => setApplicationId(event.target.value)} sx={{ minWidth: 240 }}>
-                    {(applications.data ?? []).map((application) => <MenuItem key={application.id} value={application.id}>{application.name}</MenuItem>)}
-                  </TextField>
-                ) : null}
-                <Button variant="contained" startIcon={<AutoAwesomeIcon />} disabled={draft.isPending || !selectedApp} onClick={() => draft.mutate()}>
-                  {draft.isPending ? "Drafting…" : "Draft test cases"}
-                </Button>
-              </Stack>
-              {!selectedApp && applications.isSuccess ? <Alert severity="warning">Add the website URL in Settings first.</Alert> : null}
-            </>
-          ) : null}
-          {draft.error ? <Alert severity="error">{errorMessage(draft.error)}</Alert> : null}
-          {approve.error ? <Alert severity="error">{errorMessage(approve.error)}</Alert> : null}
-          {drafts.map((item) => (
-            <Paper key={item.id} variant="outlined" sx={{ p: 1.5 }}>
-              <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ alignItems: { sm: "center" } }}>
-                <Box sx={{ flex: 1 }}>
-                  <Typography variant="subtitle2">{item.output?.title ?? "Untitled draft"}</Typography>
-                  <Typography variant="body2" color="text.secondary">{item.output?.objective}</Typography>
-                  <Typography variant="caption" color="text.secondary">
-                    {item.output?.engineType ?? "web"} · {(item.output?.steps ?? []).map((step) => step.action).join(" → ") || "no steps"}
-                  </Typography>
-                </Box>
-                {item.createdTestCaseIds[0] ? (
-                  <Button component={Link} href={`/projects/${projectId}/test-cases/${item.createdTestCaseIds[0]}`}>Open test case</Button>
-                ) : (
-                  <Button variant="outlined" disabled={approve.isPending} onClick={() => approve.mutate(item.id)}>Approve</Button>
-                )}
-              </Stack>
-            </Paper>
-          ))}
+            </Box>
+            {(applications.data?.length ?? 0) > 1 ? (
+              <TextField select size="small" label="Application" value={selectedApp} onChange={(event) => setApplicationId(event.target.value)} sx={{ minWidth: 200 }}>
+                {(applications.data ?? []).map((application) => <MenuItem key={application.id} value={application.id}>{application.name}</MenuItem>)}
+              </TextField>
+            ) : null}
+            <Button
+              variant="contained"
+              startIcon={generate.isPending ? <CircularProgress size={16} color="inherit" /> : <AutoAwesomeIcon />}
+              disabled={generate.isPending || !selectedApp || writable === 0}
+              onClick={() => generate.mutate({ fileId, applicationId: selectedApp, useAi })}
+              sx={{ flexShrink: 0 }}
+            >
+              {generate.isPending ? "Generating…" : "Generate test cases"}
+            </Button>
+          </Stack>
+          {aiStatus.data?.configured ? (
+            <FormControlLabel control={<Switch checked={useAi} onChange={(event) => setUseAi(event.target.checked)} />} label={`Let AI (${aiStatus.data.model}) write the steps`} />
+          ) : (
+            <Typography variant="caption" color="text.secondary">
+              Want AI to write the steps too? Add <code>AI_API_KEY=sk-...</code> to .env (or for local Ollama: <code>AI_BASE_URL=http://localhost:11434/v1</code>, <code>AI_API_KEY=ollama</code>,{" "}
+              <code>AI_MODEL=llama3.1</code>) and restart the API.
+            </Typography>
+          )}
+          {!selectedApp && applications.isSuccess ? <Alert severity="warning">Add the website or API URL in project Settings first.</Alert> : null}
+          <GenerateResult projectId={projectId} mutation={generate} onClose={() => generate.reset()} />
         </Stack>
       </Paper>
 

@@ -210,11 +210,12 @@ export const generatedTestSchema = z.object({
 });
 
 export const generatedDocumentTestsSchema = z.object({
-  tests: z.array(generatedTestSchema).min(1).max(8),
+  tests: z.array(generatedTestSchema).min(1).max(15),
 });
 
-export const aiDocumentTestsSchema = z.object({
-  applicationId: objectId,
+export const generateDocumentTestsSchema = z.object({
+  applicationId: objectId.optional(),
+  useAi: z.boolean().default(false),
 });
 
 export const generatedSuggestionsSchema = z.object({
@@ -254,3 +255,4 @@ export type UpdateTestPlanInput = z.infer<typeof updateTestPlanSchema>;
 export type CreateRunInput = z.infer<typeof createRunSchema>;
 export type AiPromptInput = z.infer<typeof aiPromptSchema>;
 export type AiTestInput = z.infer<typeof aiTestSchema>;
+export type GenerateDocumentTestsInput = z.infer<typeof generateDocumentTestsSchema>;

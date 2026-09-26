@@ -1,8 +1,10 @@
 import { HttpStatus, Injectable } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
+import { GeneratedDocumentTests } from "@atp/shared-types";
 import {
   AiPromptInput,
   AiTestInput,
+  GenerateDocumentTestsInput,
   generatedAnalysisSchema,
   generatedDocumentTestsSchema,
   generatedScenariosSchema,
@@ -21,6 +23,7 @@ import { TestResult, TestRun } from "../test-runs/execution.schemas";
 import { AiRequest, AiRequestDocument } from "./ai-request.schema";
 import { AiProvider } from "./ai.provider";
 import { aiSettings, parseModelJson } from "./ai.parse";
+import { DOCUMENT_TAG, engineForApplication, sectionDrafts } from "./document-drafts";
 
 const DOCUMENT_CHAR_LIMIT = 15_000;
 const JSON_SYSTEM = "Reply with JSON only. Do not invent results that were not asked for, and do not include markdown.";
@@ -72,30 +75,85 @@ export class AiService {
     }
   }
 
-  async documentTests(fileId: string, applicationId: string, userId: string) {
+  async generateFromDocument(fileId: string, input: GenerateDocumentTestsInput, userId: string): Promise<GeneratedDocumentTests> {
     const document = await this.files.readText(fileId);
     const projectId = document.file.projectId;
-    await this.applications.ensureInProject(applicationId, projectId);
-    const excerpt = document.text.slice(0, DOCUMENT_CHAR_LIMIT);
+    const application = await this.documentApplication(projectId, input.applicationId);
+    const engineType = engineForApplication(application.type);
+    const fileName = document.file.fileName;
+
+    const drafts = input.useAi
+      ? (await this.aiDocumentDrafts(fileName, document.text)).map((draft) => ({
+          title: draft.title,
+          objective: draft.objective,
+          description: `Drafted by AI from ${fileName}.`,
+          type: draft.engineType === "api" ? ("api" as const) : ("functional" as const),
+          engineType: draft.engineType,
+          priority: "medium" as const,
+          status: "draft" as const,
+          tags: [DOCUMENT_TAG, "ai"],
+          preconditions: [],
+          steps: draft.steps.map((step, index) => ({ id: `ai-${index + 1}`, order: index, action: step.action, target: step.target, value: step.value })),
+        }))
+      : sectionDrafts(fileName, document.sections, engineType);
+    if (drafts.length === 0) {
+      throw new AppException("VALIDATION_ERROR", "This document has no sections with text to turn into test cases", HttpStatus.UNPROCESSABLE_ENTITY);
+    }
+
+    const existing = await this.testCases.list(projectId);
+    const taken = new Set(existing.filter((testCase) => testCase.tags.includes(DOCUMENT_TAG)).map((testCase) => testCase.title.toLowerCase()));
+    const created = [];
+    const skipped = [];
+    for (const draft of drafts) {
+      if (taken.has(draft.title.toLowerCase())) {
+        skipped.push(draft.title);
+        continue;
+      }
+      created.push(await this.testCases.create(projectId, { ...draft, applicationId: application.id }, userId));
+      taken.add(draft.title.toLowerCase());
+    }
+
+    if (input.useAi) {
+      await this.requests.create({
+        projectId: asObjectId(projectId),
+        kind: "test",
+        prompt: `From document ${fileName}`,
+        output: { tests: drafts.map((draft) => draft.title), applicationId: application.id },
+        status: "approved",
+        createdTestCaseIds: created.map((testCase) => new Types.ObjectId(testCase.id)),
+        createdBy: new Types.ObjectId(userId),
+      });
+    }
+    return { source: input.useAi ? "ai" : "sections", created, skipped };
+  }
+
+  private async documentApplication(projectId: string, applicationId?: string) {
+    if (applicationId) {
+      await this.applications.ensureInProject(applicationId, projectId);
+      return this.applications.get(applicationId);
+    }
+    const [first] = await this.applications.list(projectId);
+    if (!first) {
+      throw new AppException("VALIDATION_ERROR", "Add the website or API URL in project Settings first", HttpStatus.BAD_REQUEST);
+    }
+    return first;
+  }
+
+  private async aiDocumentDrafts(fileName: string, documentText: string) {
     const text = await this.provider.complete(
       JSON_SYSTEM,
       [
-        "Read the requirement document below and draft up to 8 automated tests that check the behaviour it describes.",
+        "Read the requirement document below and draft up to 15 automated tests that check the behaviour it describes.",
         'Reply as {"tests":[{"title":"","objective":"","engineType":"web","steps":[{"action":"navigate","target":"","value":""}]}]}.',
         "engineType is web for browser tests or api for HTTP tests.",
         "Web actions: navigate (value = path like /login), click, fill (target = CSS selector, value = text), select, check, uncheck, assertText (target, value = expected text), assertVisible (target), wait, screenshot.",
         "API tests use action httpRequest with target = path.",
         "Paths are relative to the application base URL. Only use behaviour stated in the document; if selectors are unknown, use descriptive placeholders like [data-testid=task-title].",
-        `Document "${document.file.fileName}":`,
-        excerpt,
+        `Document "${fileName}":`,
+        documentText.slice(0, DOCUMENT_CHAR_LIMIT),
       ].join("\n"),
     );
-    const output = this.read(text, generatedDocumentTestsSchema);
-    const records = [];
-    for (const draft of output.tests) {
-      records.push(await this.store(projectId, "test", `From document ${document.file.fileName}`, { ...draft, applicationId }, userId));
-    }
-    return records.map((record) => this.present(record));
+    return this.read(text, generatedDocumentTestsSchema).tests;
   }
 
   async suggestions(projectId: string, input: AiPromptInput, userId: string) {

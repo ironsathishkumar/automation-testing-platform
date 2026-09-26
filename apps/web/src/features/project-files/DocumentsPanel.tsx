@@ -1,14 +1,33 @@
 "use client";
 
 import { PROJECT_FILE_CATEGORIES, ProjectFile, ProjectFileCategory } from "@atp/shared-types";
+import AutoAwesomeIcon from "@mui/icons-material/AutoAwesome";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
-import { Alert, Button, Chip, LinearProgress, MenuItem, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, TextField, Typography } from "@mui/material";
+import {
+  Alert,
+  Box,
+  Button,
+  Chip,
+  CircularProgress,
+  LinearProgress,
+  MenuItem,
+  Paper,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  TextField,
+  Typography,
+} from "@mui/material";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useState } from "react";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { EmptyState, PageHeader } from "@/components/PageHeader";
 import { api, apiUrl, errorMessage } from "@/lib/api";
+import { GenerateResult, useAiStatus, useGenerateTests } from "./generate-tests";
 
 const CATEGORY_LABELS: Record<ProjectFileCategory, string> = {
   requirements: "Requirements / specs",
@@ -38,6 +57,9 @@ export function DocumentsPanel({ projectId }: { projectId: string }) {
   const [messages, setMessages] = useState<string[]>([]);
   const [pendingDelete, setPendingDelete] = useState<ProjectFile | null>(null);
   const files = useQuery({ queryKey: ["project-files", projectId], queryFn: () => api<ProjectFile[]>(`/projects/${projectId}/files`) });
+  const aiStatus = useAiStatus();
+  const generate = useGenerateTests(projectId);
+  const generatingId = generate.isPending ? generate.variables?.fileId : undefined;
 
   const upload = useMutation({
     mutationFn: async (selected: File[]) => {
@@ -111,7 +133,7 @@ export function DocumentsPanel({ projectId }: { projectId: string }) {
           </Stack>
           <Typography variant="caption" color="text.secondary">
             PDF, Word, Excel, PowerPoint, CSV, text, Markdown, JSON, YAML, Gherkin .feature, images, or ZIP. Up to 25 MB each. Files stay on this machine under storage/documents.
-            Text formats (.md, .txt, .csv, .json, .yaml, .feature) open inside the app so you can write test cases section by section; save Word or PDF requirements as Markdown or text to use that.
+            Text formats (.md, .txt, .csv, .json, .yaml, .feature) can generate test cases in one click; save Word or PDF requirements as Markdown or text to use that.
           </Typography>
           {upload.isPending ? <LinearProgress /> : null}
           {messages.length > 0 ? <Alert severity="error" onClose={() => setMessages([])}>{messages.join(" ")}</Alert> : null}
@@ -119,6 +141,9 @@ export function DocumentsPanel({ projectId }: { projectId: string }) {
       </Paper>
 
       {files.error ? <Alert severity="error">{errorMessage(files.error)}</Alert> : null}
+      <Box sx={{ mb: generate.data || generate.error ? 2 : 0 }}>
+        <GenerateResult projectId={projectId} mutation={generate} onClose={() => generate.reset()} />
+      </Box>
       {files.data?.length === 0 ? <EmptyState title="No documents yet" body="Upload the client's requirement documents or test sheets so the team can review them while writing tests." /> : null}
       {files.data && files.data.length > 0 ? (
         <Table>
@@ -147,7 +172,18 @@ export function DocumentsPanel({ projectId }: { projectId: string }) {
                 <TableCell>{new Date(file.createdAt).toLocaleString()}</TableCell>
                 <TableCell align="right">
                   {isReadable(file.fileName) ? (
-                    <Button size="small" variant="outlined" component={Link} href={`/projects/${projectId}/documents/${file.id}`}>Write tests</Button>
+                    <>
+                      <Button
+                        size="small"
+                        variant="contained"
+                        startIcon={generatingId === file.id ? <CircularProgress size={14} color="inherit" /> : <AutoAwesomeIcon />}
+                        disabled={generate.isPending}
+                        onClick={() => generate.mutate({ fileId: file.id, useAi: Boolean(aiStatus.data?.configured) })}
+                      >
+                        {generatingId === file.id ? "Generating…" : "Generate test cases"}
+                      </Button>
+                      <Button size="small" component={Link} href={`/projects/${projectId}/documents/${file.id}`}>Open</Button>
+                    </>
                   ) : null}
                   <Button size="small" component="a" href={`${apiUrl()}/files/${file.id}/download`}>Download</Button>
                   <Button size="small" color="error" onClick={() => setPendingDelete(file)}>Delete</Button>
