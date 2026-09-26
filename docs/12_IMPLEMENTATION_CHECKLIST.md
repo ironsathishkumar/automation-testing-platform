@@ -87,16 +87,16 @@
 
 ## Advanced
 
-- [ ] Appium
-- [ ] k6
-- [ ] Security
-- [ ] Database
-- [ ] Contract
-- [ ] Architecture
-- [ ] Reliability
-- [ ] Localization
-- [ ] File
-- [ ] Notification
+- [x] Appium
+- [x] k6
+- [x] Security
+- [x] Database
+- [x] Contract
+- [x] Architecture
+- [x] Reliability
+- [x] Localization
+- [x] File
+- [x] Notification
 
 ## AI
 
