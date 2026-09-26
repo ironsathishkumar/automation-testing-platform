@@ -5,15 +5,17 @@ import { loginSchema } from "@atp/validation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { use, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { AuthFrame } from "@/components/AuthFrame";
 import { api, errorMessage } from "@/lib/api";
+import { SESSION_EXPIRED, safeNext } from "@/lib/redirect";
 
 type LoginValues = z.infer<typeof loginSchema>;
 
-export default function LoginPage() {
+export default function LoginPage({ searchParams }: { searchParams: Promise<{ reason?: string; next?: string }> }) {
+  const { reason, next } = use(searchParams);
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const form = useForm<LoginValues>({ resolver: zodResolver(loginSchema), defaultValues: { email: "", password: "" } });
@@ -22,7 +24,7 @@ export default function LoginPage() {
     setError(null);
     try {
       await api("/auth/login", { method: "POST", body: JSON.stringify(values) });
-      router.push("/dashboard");
+      router.replace(safeNext(next));
       router.refresh();
     } catch (caught) {
       setError(errorMessage(caught));
@@ -40,6 +42,7 @@ export default function LoginPage() {
       }
     >
       <Stack component="form" spacing={2} onSubmit={form.handleSubmit(onSubmit)}>
+        {reason === SESSION_EXPIRED && !error ? <Alert severity="info">Your session has expired. Sign in again.</Alert> : null}
         {error ? <Alert severity="error">{error}</Alert> : null}
         <TextField label="Email" type="email" {...form.register("email")} error={Boolean(form.formState.errors.email)} helperText={form.formState.errors.email?.message} />
         <TextField label="Password" type="password" {...form.register("password")} error={Boolean(form.formState.errors.password)} helperText={form.formState.errors.password?.message} />

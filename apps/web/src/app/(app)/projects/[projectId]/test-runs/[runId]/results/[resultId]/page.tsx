@@ -5,9 +5,7 @@ import { Artifact, TestResult } from "@atp/shared-types";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { use } from "react";
-import { api, errorMessage } from "@/lib/api";
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:4000/api";
+import { api, apiUrl, errorMessage } from "@/lib/api";
 
 export default function ResultDetailPage({
   params,
@@ -39,11 +37,11 @@ export default function ResultDetailPage({
       <Typography variant="h6">Evidence</Typography>
       {(artifacts.data ?? []).map((artifact) => (
         <Stack key={artifact.id} spacing={1}>
-          <MuiLink href={`${API_URL}/artifacts/${artifact.id}`} target="_blank" rel="noreferrer">
+          <MuiLink href={`${apiUrl()}/artifacts/${artifact.id}`} target="_blank" rel="noreferrer">
             {artifact.type}: {artifact.fileName}
           </MuiLink>
           {artifact.mimeType.startsWith("image/") ? (
-            <img src={`${API_URL}/artifacts/${artifact.id}`} alt={artifact.fileName} style={{ maxWidth: 480 }} />
+            <img src={`${apiUrl()}/artifacts/${artifact.id}`} alt={artifact.fileName} style={{ maxWidth: 480 }} />
           ) : null}
         </Stack>
       ))}
