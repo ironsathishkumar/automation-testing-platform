@@ -144,6 +144,8 @@ export const createTestCaseSchema = z.object({
   preconditions: z.array(z.string().trim().min(1).max(500)).max(30).default([]),
   steps: z.array(testStepSchema).max(100).default([]),
   testData: z.record(z.string(), z.unknown()).optional(),
+  sequence: z.number().int().min(1).max(9999).nullable().optional(),
+  setup: z.boolean().optional(),
 });
 
 export const updateTestCaseSchema = createTestCaseSchema.partial();

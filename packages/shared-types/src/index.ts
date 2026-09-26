@@ -28,6 +28,7 @@ export const STEP_ACTIONS = [
   "navigate",
   "click",
   "fill",
+  "press",
   "select",
   "check",
   "uncheck",
@@ -178,6 +179,8 @@ export interface TestCase {
   preconditions: string[];
   steps: TestStep[];
   testData?: Record<string, unknown>;
+  sequence?: number;
+  setup: boolean;
   createdBy: string;
   createdAt: string;
   updatedAt: string;

@@ -19,13 +19,14 @@ import {
   Typography,
 } from "@mui/material";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import { ExecutionLogEntry, TestCase, TestResult, TestRun } from "@atp/shared-types";
+import PlayArrowIcon from "@mui/icons-material/PlayArrow";
+import { Artifact, ExecutionLogEntry, TestCase, TestResult, TestRun } from "@atp/shared-types";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { use } from "react";
+import { use, useCallback, useEffect, useRef } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { formatDuration, statusColor, variantLabel } from "@/features/test-runs/status";
-import { api, errorMessage } from "@/lib/api";
+import { api, apiUrl, errorMessage } from "@/lib/api";
 
 export default function RunDetailPage({ params }: { params: Promise<{ projectId: string; runId: string }> }) {
   const { projectId, runId } = use(params);
@@ -47,6 +48,31 @@ export default function RunDetailPage({ params }: { params: Promise<{ projectId:
   });
   const cases = useQuery({ queryKey: ["test-cases", projectId], queryFn: () => api<TestCase[]>(`/projects/${projectId}/test-cases`) });
   const titles = new Map((cases.data ?? []).map((testCase) => [testCase.id, testCase.title]));
+  const runFiles = useQuery({
+    queryKey: ["run-artifacts", runId],
+    queryFn: () => api<Artifact[]>(`/test-runs/${runId}/artifacts`),
+    refetchInterval: active ? 3000 : false,
+  });
+  const recording = (runFiles.data ?? []).find((artifact) => artifact.type === "video");
+  const player = useRef<HTMLVideoElement>(null);
+
+  const watchFrom = useCallback((offsetMs: number) => {
+    const video = player.current;
+    if (!video) return;
+    video.currentTime = Math.max(0, offsetMs / 1000);
+    video.scrollIntoView({ behavior: "smooth", block: "center" });
+    void video.play().catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    const at = Number(new URLSearchParams(window.location.search).get("at"));
+    const video = player.current;
+    if (!recording || !video || !Number.isFinite(at) || at <= 0) return;
+    const seek = () => watchFrom(at);
+    if (video.readyState >= 1) seek();
+    else video.addEventListener("loadedmetadata", seek, { once: true });
+    return () => video.removeEventListener("loadedmetadata", seek);
+  }, [recording, watchFrom]);
 
   async function post(action: "cancel" | "retry" | "rerun-failed") {
     await api(`/test-runs/${runId}/${action}`, { method: "POST" });
@@ -107,6 +133,19 @@ export default function RunDetailPage({ params }: { params: Promise<{ projectId:
         ) : null}
       </Paper>
 
+      {recording ? (
+        <Paper variant="outlined" sx={{ p: 2, mb: 3 }}>
+          <Typography variant="subtitle1">Recording of the whole run</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+            All tests ran one after another in the same browser. Press Watch on a test below to jump to it.
+          </Typography>
+          <Box component="video" ref={player} controls preload="metadata" src={`${apiUrl()}/artifacts/${recording.id}`} sx={{ width: "100%", maxHeight: 560, bgcolor: "black", borderRadius: 1 }} />
+          <Button size="small" component="a" href={`${apiUrl()}/artifacts/${recording.id}`} download sx={{ mt: 1 }}>Download video</Button>
+        </Paper>
+      ) : active && (results.data ?? []).some((result) => result.metrics?.recordingOffsetMs !== undefined) ? (
+        <Alert severity="info" sx={{ mb: 3 }}>The tests share one browser. The recording of the whole run appears here when the last test finishes.</Alert>
+      ) : null}
+
       {(results.data ?? []).length > 0 ? (
         <Table sx={{ mb: 3 }}>
           <TableHead>
@@ -122,6 +161,7 @@ export default function RunDetailPage({ params }: { params: Promise<{ projectId:
           <TableBody>
             {(results.data ?? []).map((result) => {
               const passedSteps = result.steps.filter((step) => step.status === "passed").length;
+              const offset = result.metrics?.recordingOffsetMs;
               return (
                 <TableRow key={result.id} hover>
                   <TableCell>
@@ -132,9 +172,14 @@ export default function RunDetailPage({ params }: { params: Promise<{ projectId:
                   <TableCell>{passedSteps} / {result.steps.length}</TableCell>
                   <TableCell>{formatDuration(result.durationMs)}</TableCell>
                   <TableCell sx={{ maxWidth: 320, color: "error.main", fontSize: 13 }}>{result.error?.message.split("\n")[0]}</TableCell>
-                  <TableCell align="right">
-                    <Button size="small" variant="outlined" component={Link} href={`/projects/${projectId}/test-runs/${runId}/results/${result.id}`} sx={{ whiteSpace: "nowrap" }}>
-                      Screenshots &amp; video
+                  <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>
+                    {recording && offset !== undefined ? (
+                      <Button size="small" startIcon={<PlayArrowIcon />} onClick={() => watchFrom(offset)} sx={{ mr: 1 }}>
+                        Watch
+                      </Button>
+                    ) : null}
+                    <Button size="small" variant="outlined" component={Link} href={`/projects/${projectId}/test-runs/${runId}/results/${result.id}`}>
+                      {offset !== undefined ? "Screenshots" : "Screenshots & video"}
                     </Button>
                   </TableCell>
                 </TableRow>

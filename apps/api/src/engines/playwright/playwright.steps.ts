@@ -3,21 +3,33 @@ import path from "node:path";
 import { ArtifactReference, ExecutionContext } from "@atp/engine-contracts";
 import { TestStep } from "@atp/shared-types";
 import { Download, Page } from "playwright";
+import { applyVariables } from "../api/api.helpers";
 import { boundedTimeout, relativeArtifact, uploadPath } from "./playwright.helpers";
+
+// Client-rendered apps ignore clicks until their JavaScript has loaded, and a click that changes the route
+// swaps the screen out from under the next step, so wait for the network to go quiet after both.
+const SETTLE_TIMEOUT_MS = 5000;
 
 export async function executeWebStep(page: Page, step: TestStep, context: ExecutionContext): Promise<ArtifactReference[]> {
   const timeout = boundedTimeout(step.timeoutMs, context.timeoutMs);
-  const target = step.target ?? "";
-  const value = step.value === undefined || step.value === null ? "" : String(step.value);
+  const target = applyVariables(step.target ?? "", context.variables);
+  const value = step.value === undefined || step.value === null ? "" : applyVariables(String(step.value), context.variables);
   switch (step.action) {
     case "navigate":
       await page.goto(value || target, { timeout });
+      await settle(page);
       return [];
     case "click":
       await page.locator(target).click({ timeout });
+      await settle(page);
       return [];
     case "fill":
       await page.locator(target).fill(value, { timeout });
+      return [];
+    case "press":
+      if (target) await page.locator(target).press(value || "Enter", { timeout });
+      else await page.keyboard.press(value || "Enter");
+      await settle(page);
       return [];
     case "select":
       await page.locator(target).selectOption(value, { timeout });
@@ -57,6 +69,10 @@ export async function executeWebStep(page: Page, step: TestStep, context: Execut
     default:
       throw new Error(`Web engine does not support ${step.action}`);
   }
+}
+
+async function settle(page: Page) {
+  await page.waitForLoadState("networkidle", { timeout: SETTLE_TIMEOUT_MS }).catch(() => undefined);
 }
 
 export async function captureScreenshot(page: Page, context: ExecutionContext, fileName: string) {

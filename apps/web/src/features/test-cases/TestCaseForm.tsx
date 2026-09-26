@@ -5,7 +5,7 @@ import { createTestCaseSchema } from "@atp/validation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline";
 import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
-import { Accordion, AccordionDetails, AccordionSummary, Alert, Box, Button, IconButton, ListItemText, MenuItem, Paper, Stack, TextField, Typography } from "@mui/material";
+import { Accordion, AccordionDetails, AccordionSummary, Alert, Box, Button, FormControlLabel, IconButton, ListItemText, MenuItem, Paper, Stack, Switch, TextField, Typography } from "@mui/material";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -62,6 +62,8 @@ function defaults(): FormInput {
     engineType: "web",
     priority: "medium",
     status: "draft",
+    sequence: null,
+    setup: false,
     steps: starterSteps("web"),
   };
 }
@@ -133,6 +135,8 @@ export function TestCaseForm({ projectId, testCaseId, prefill }: { projectId: st
       engineType: existing.data.engineType,
       priority: existing.data.priority,
       status: existing.data.status,
+      sequence: existing.data.sequence ?? null,
+      setup: existing.data.setup,
       steps:
         existing.data.steps.length > 0
           ? existing.data.steps.map((step) => ({
@@ -364,11 +368,35 @@ export function TestCaseForm({ projectId, testCaseId, prefill }: { projectId: st
         <AccordionSummary expandIcon={<ExpandMoreIcon />}>
           <Box>
             <Typography>More details</Typography>
-            <Typography variant="body2" color="text.secondary">Optional: key, environment, priority, status, notes, and tags.</Typography>
+            <Typography variant="body2" color="text.secondary">Optional: run order, sign-in setup, key, environment, priority, status, notes, and tags.</Typography>
           </Box>
         </AccordionSummary>
         <AccordionDetails>
           <Stack spacing={2}>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ alignItems: { sm: "center" } }}>
+              <TextField
+                type="number"
+                label="Run order"
+                placeholder="10"
+                slotProps={{ ...shrink, htmlInput: { min: 1, max: 9999 } }}
+                value={form.watch("sequence") ?? ""}
+                onChange={(event) => form.setValue("sequence", event.target.value === "" ? null : Number(event.target.value))}
+                error={Boolean(errors.sequence)}
+                helperText={errors.sequence?.message ?? "Run all plays tests from low to high, in one browser. Empty runs after the numbered ones."}
+                sx={{ minWidth: 220 }}
+              />
+              <FormControlLabel
+                control={<Switch checked={form.watch("setup") ?? false} onChange={(event) => form.setValue("setup", event.target.checked)} />}
+                label={
+                  <Box>
+                    <Typography variant="body2">Sign-in setup</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      Runs first in Run all, and before any test you run on its own.
+                    </Typography>
+                  </Box>
+                }
+              />
+            </Stack>
             <TextField label="Key" placeholder="LOGIN-001" slotProps={shrink} helperText="Short unique id. Generated from the title if empty." {...form.register("key")} />
             <TextField
               select

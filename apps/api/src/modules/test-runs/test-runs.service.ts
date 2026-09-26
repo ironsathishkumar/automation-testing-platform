@@ -14,11 +14,12 @@ import { EngineRegistry } from "../../engines/engine-registry";
 import { Application } from "../applications/application.schema";
 import { Environment } from "../environments/environment.schema";
 import { ProjectsService } from "../projects/projects.service";
-import { TestCase } from "../test-cases/test-case.schema";
+import { TestCase, TestCaseDocument } from "../test-cases/test-case.schema";
 import { TestPlan } from "../test-plans/test-plan.schema";
 import { TestSuite } from "../test-suites/test-suite.schema";
 import { ArtifactRecord, ExecutionJob, ExecutionJobDocument, ExecutionLog, TestResult, TestResultDocument, TestRun, TestRunDocument } from "./execution.schemas";
 import { jobVariant, matrixCombinations, readViewport } from "./run-matrix";
+import { readSession, runOrder, withoutSession } from "./run-order";
 import { summarizeResults } from "./run-status";
 
 const CONCURRENCY = 2;
@@ -68,8 +69,10 @@ export class TestRunsService implements OnModuleInit, OnModuleDestroy {
       total: selection.cases.length * selection.matrices.length,
       triggeredBy: new Types.ObjectId(userId),
     });
-    const jobs = selection.cases.flatMap((testCase) =>
-      selection.matrices.map((matrix) => ({
+    const webCases = selection.cases.filter((testCase) => testCase.engineType === "web");
+    const shareBrowser = selection.executionMode === "sequential" && webCases.length > 1;
+    const jobs = selection.matrices.flatMap((matrix, matrixIndex) =>
+      selection.cases.map((testCase) => ({
         runId: run._id,
         testCaseId: testCase._id,
         engineType: testCase.engineType,
@@ -77,10 +80,14 @@ export class TestRunsService implements OnModuleInit, OnModuleDestroy {
         attempt: 1,
         payload: {
           environmentId: (input.environmentId ?? selection.environmentId ?? testCase.environmentId?.toString()) || undefined,
-          retryCount: selection.retryCount,
+          retryCount: shareBrowser ? 0 : selection.retryCount,
           browser: matrix.browser,
           viewport: matrix.viewport,
           headed: input.headed === true,
+          session:
+            shareBrowser && testCase.engineType === "web"
+              ? { key: String(matrixIndex), index: webCases.indexOf(testCase), total: webCases.length }
+              : undefined,
         },
       })),
     );
@@ -183,7 +190,7 @@ export class TestRunsService implements OnModuleInit, OnModuleDestroy {
           engineType: previous?.engineType ?? "web",
           status: "queued",
           attempt: 1,
-          payload: previous?.payload ?? { environmentId },
+          payload: previous ? withoutSession(previous.payload) : { environmentId },
         };
       }),
     );
@@ -211,7 +218,7 @@ export class TestRunsService implements OnModuleInit, OnModuleDestroy {
     return this.jobs.findOneAndUpdate(
       { status: "queued", runId: { $nin: sequential.map((run) => run._id) } },
       { status: "running", startedAt: new Date() },
-      { sort: { createdAt: 1 }, new: true },
+      { sort: { createdAt: 1, _id: 1 }, new: true },
     );
   }
 
@@ -279,6 +286,10 @@ export class TestRunsService implements OnModuleInit, OnModuleDestroy {
     const browser = typeof job.payload.browser === "string" ? job.payload.browser : environment?.settings.browser;
     const viewport = readViewport(job.payload.viewport);
     const timeoutMs = typeof environment?.settings.timeoutMs === "number" ? environment.settings.timeoutMs : 30000;
+    variables.RUN_ID ??= run.id.slice(-6);
+    const session = readSession(job.payload.session);
+    const setupSteps = session ? [] : await this.setupStepsFor(testCase);
+    if (setupSteps.length > 0) await this.log(run.id, "info", `Signing in first with the setup test`, job.id, testCase.id);
     await this.log(run.id, "info", `Started ${testCase.key}`, job.id, testCase.id);
     return engine.execute({
       runId: run.id,
@@ -294,7 +305,10 @@ export class TestRunsService implements OnModuleInit, OnModuleDestroy {
       browser: typeof browser === "string" ? browser : "chromium",
       viewport,
       headed: job.payload.headed === true,
-      steps: testCase.steps.map((step) => ({
+      session: session
+        ? { ...session, key: `${run.id}:${session.key}`, directory: resolveInside(artifactRoot, run.projectId.toString(), run.id, `recording-${session.key}`) }
+        : undefined,
+      steps: [...setupSteps, ...testCase.steps].map((step) => ({
         id: step.id,
         order: step.order,
         action: step.action,
@@ -305,6 +319,24 @@ export class TestRunsService implements OnModuleInit, OnModuleDestroy {
       })),
       signal,
     });
+  }
+
+  /** A test run on its own still needs the app's sign-in, so borrow the steps of the project's setup test. */
+  private async setupStepsFor(testCase: TestCaseDocument) {
+    if (testCase.setup || testCase.engineType !== "web") return [];
+    const setup = await this.testCases
+      .findOne({ projectId: testCase.projectId, applicationId: testCase.applicationId, setup: true, status: { $ne: "deprecated" } })
+      .sort({ sequence: 1, createdAt: 1 });
+    if (!setup) return [];
+    return setup.steps.map((step, index) => ({
+      id: `setup-${step.id}`,
+      order: index - setup.steps.length,
+      action: step.action,
+      target: step.target,
+      value: step.value,
+      assertion: step.assertion,
+      timeoutMs: step.timeoutMs,
+    }));
   }
 
   private async persist(run: TestRunDocument, job: ExecutionJobDocument, outcome: EngineResult) {
@@ -324,6 +356,18 @@ export class TestRunsService implements OnModuleInit, OnModuleDestroy {
           sizeBytes: artifact.sizeBytes,
         }),
       );
+    }
+    for (const artifact of outcome.runArtifacts ?? []) {
+      if (!resolveInside(artifactRoot, artifact.relativePath).startsWith(path.resolve(artifactRoot))) continue;
+      await this.artifacts.create({
+        projectId: run.projectId,
+        runId: run._id,
+        type: artifact.type,
+        fileName: artifact.fileName,
+        relativePath: artifact.relativePath,
+        mimeType: artifact.mimeType,
+        sizeBytes: artifact.sizeBytes,
+      });
     }
     const result = await this.results.create({
       runId: run._id,
@@ -347,7 +391,7 @@ export class TestRunsService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async maybeRetry(run: TestRunDocument, job: ExecutionJobDocument) {
-    if (job.status !== "failed" || run.cancelRequested) return;
+    if (job.status !== "failed" || run.cancelRequested || job.payload.session) return;
     const limit = typeof job.payload.retryCount === "number" ? job.payload.retryCount : run.retryCount;
     if (job.attempt > limit) return;
     await this.jobs.create({
@@ -372,7 +416,7 @@ export class TestRunsService implements OnModuleInit, OnModuleDestroy {
           engineType: previous?.engineType ?? "web",
           status: "queued",
           attempt: (previous?.attempt ?? 1) + 1,
-          payload: previous?.payload ?? {},
+          payload: previous ? withoutSession(previous.payload) : {},
         };
       }),
     );
@@ -411,9 +455,10 @@ export class TestRunsService implements OnModuleInit, OnModuleDestroy {
       return { cases: [testCase], executionMode: "sequential" as const, retryCount: 0, environmentId: input.environmentId, matrices: matrixCombinations() };
     }
     if (input.all) {
-      const cases = await this.testCases
+      const found = await this.testCases
         .find({ projectId: asObjectId(input.projectId), status: { $ne: "deprecated" }, "steps.0": { $exists: true } })
         .sort({ createdAt: 1 });
+      const cases = runOrder(found);
       if (cases.length === 0) {
         throw new AppException("VALIDATION_ERROR", "This project has no test cases with steps to run", HttpStatus.BAD_REQUEST);
       }

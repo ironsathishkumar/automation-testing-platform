@@ -10,6 +10,7 @@ import { toResourceKey } from "../../common/slug";
 import { ApplicationsService } from "../applications/applications.service";
 import { EnvironmentsService } from "../environments/environments.service";
 import { ProjectsService } from "../projects/projects.service";
+import { runOrder } from "../test-runs/run-order";
 import { TestCase, TestCaseDocument } from "./test-case.schema";
 
 @Injectable()
@@ -23,8 +24,8 @@ export class TestCasesService {
 
   async list(projectId: string): Promise<TestCaseView[]> {
     await this.projects.ensure(projectId);
-    const records = await this.testCases.find({ projectId: asObjectId(projectId) }).sort({ updatedAt: -1 });
-    return records.map((record) => this.present(record));
+    const records = await this.testCases.find({ projectId: asObjectId(projectId) }).sort({ createdAt: 1 });
+    return runOrder(records).map((record) => this.present(record));
   }
 
   async get(id: string): Promise<TestCaseView> {
@@ -51,6 +52,8 @@ export class TestCasesService {
         preconditions: input.preconditions,
         steps: this.normalizeSteps(input.steps),
         testData: input.testData,
+        sequence: input.sequence ?? undefined,
+        setup: input.setup ?? false,
         createdBy: new Types.ObjectId(userId),
       });
       return this.present(record);
@@ -83,6 +86,8 @@ export class TestCasesService {
     if (input.tags !== undefined) record.tags = input.tags;
     if (input.preconditions !== undefined) record.preconditions = input.preconditions;
     if (input.testData !== undefined) record.testData = input.testData;
+    if (input.sequence !== undefined) record.sequence = input.sequence ?? undefined;
+    if (input.setup !== undefined) record.setup = input.setup;
     if (input.steps) {
       record.steps = this.normalizeSteps(input.steps);
       record.markModified("steps");
@@ -201,6 +206,8 @@ export class TestCasesService {
         timeoutMs: step.timeoutMs,
       })),
       testData: record.testData,
+      sequence: record.sequence ?? undefined,
+      setup: record.setup === true,
       createdBy: record.createdBy.toString(),
       createdAt: record.createdAt.toISOString(),
       updatedAt: record.updatedAt.toISOString(),

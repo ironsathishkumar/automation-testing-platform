@@ -1,5 +1,5 @@
 import { createReadStream } from "node:fs";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { HttpStatus, Injectable, StreamableFile } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
@@ -10,6 +10,7 @@ import { AppException } from "../../common/app.exception";
 import { asObjectId } from "../../common/ids";
 import { resolveInside } from "../../common/safe-path";
 import { ArtifactDocument, ArtifactRecord, TestResult, TestRun } from "./execution.schemas";
+import { parseByteRange } from "./byte-range";
 
 @Injectable()
 export class ReportsService {
@@ -60,17 +61,34 @@ export class ReportsService {
     return records.map((record) => this.present(record));
   }
 
-  async open(id: string) {
+  async artifactsForRun(runId: string): Promise<ArtifactView[]> {
+    const run = await this.requireRun(runId);
+    const records = await this.artifacts.find({ runId: run._id, resultId: { $exists: false } }).sort({ createdAt: 1 });
+    return records.map((record) => this.present(record));
+  }
+
+  /** Honors a byte Range so video players can jump to any point of a recording. */
+  async open(id: string, rangeHeader?: string) {
     const record = await this.artifacts.findById(asObjectId(id, "Artifact not found"));
     if (!record) throw new AppException("NOT_FOUND", "Artifact not found", HttpStatus.NOT_FOUND);
     const absolute = resolveInside(this.config.getOrThrow<string>("ARTIFACT_ROOT"), record.relativePath);
+    const size = statSync(absolute).size;
+    const range = parseByteRange(rangeHeader, size);
+    const options = { type: record.mimeType, disposition: `inline; filename="${record.fileName.replace(/"/g, "")}"` };
+    if (range === "unsatisfiable") {
+      return { status: HttpStatus.REQUESTED_RANGE_NOT_SATISFIABLE, headers: { "Content-Range": `bytes */${size}` }, stream: undefined };
+    }
+    if (range) {
+      return {
+        status: HttpStatus.PARTIAL_CONTENT,
+        headers: { "Accept-Ranges": "bytes", "Content-Range": `bytes ${range.start}-${range.end}/${size}` },
+        stream: new StreamableFile(createReadStream(absolute, range), { ...options, length: range.end - range.start + 1 }),
+      };
+    }
     return {
-      mimeType: record.mimeType,
-      fileName: record.fileName,
-      stream: new StreamableFile(createReadStream(absolute), {
-        type: record.mimeType,
-        disposition: `inline; filename="${record.fileName.replace(/"/g, "")}"`,
-      }),
+      status: HttpStatus.OK,
+      headers: { "Accept-Ranges": "bytes" },
+      stream: new StreamableFile(createReadStream(absolute), { ...options, length: size }),
     };
   }
 

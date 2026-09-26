@@ -1,5 +1,6 @@
-import { Body, Controller, Get, Header, HttpCode, Param, Post, Query, StreamableFile } from "@nestjs/common";
+import { Body, Controller, Get, Header, Headers, HttpCode, Param, Post, Query, Res, StreamableFile } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
+import { Response } from "express";
 import { createRunSchema } from "@atp/validation";
 import { AuthUser, CurrentUser } from "../../common/current-user.decorator";
 import { ZodValidationPipe } from "../../common/zod-validation.pipe";
@@ -63,6 +64,11 @@ export class TestRunsController {
     return this.runs.rerunFailed(id, user.id);
   }
 
+  @Get("test-runs/:id/artifacts")
+  runArtifacts(@Param("id") id: string) {
+    return this.reports.artifactsForRun(id);
+  }
+
   @Get("test-results/:id")
   result(@Param("id") id: string) {
     return this.runs.result(id);
@@ -74,8 +80,14 @@ export class TestRunsController {
   }
 
   @Get("artifacts/:id")
-  async artifact(@Param("id") id: string): Promise<StreamableFile> {
-    const file = await this.reports.open(id);
+  async artifact(
+    @Param("id") id: string,
+    @Headers("range") range: string | undefined,
+    @Res({ passthrough: true }) response: Response,
+  ): Promise<StreamableFile | undefined> {
+    const file = await this.reports.open(id, range);
+    response.status(file.status);
+    response.set(file.headers);
     return file.stream;
   }
 

@@ -101,19 +101,35 @@ export default function ResultDetailPage({ params }: { params: Promise<{ project
             ) : null}
           </Stack>
         </Paper>
+      ) : result.data.metrics?.recordingOffsetMs !== undefined ? (
+        <Alert
+          severity="info"
+          sx={{ mb: 3 }}
+          action={
+            <Button color="inherit" size="small" component={Link} href={`/projects/${projectId}/test-runs/${runId}?at=${result.data.metrics.recordingOffsetMs}`}>
+              Watch this test
+            </Button>
+          }
+        >
+          This test ran in the same browser as the rest of the run, so it is part of the whole-run recording.
+          {trace ? (
+            <Button size="small" component="a" href={url(trace)} download sx={{ ml: 1 }}>Download Playwright trace</Button>
+          ) : null}
+        </Alert>
       ) : null}
 
       <Typography variant="h6" sx={{ mb: 1 }}>Steps</Typography>
       <Stack spacing={2} sx={{ mb: 3 }}>
         {result.data.steps.map((step) => {
           const shot = shotFor(step.order);
-          const defined = definedSteps.find((item) => item.id === step.id) ?? definedSteps[step.order];
+          const signIn = step.id.startsWith("setup-");
+          const defined = signIn ? undefined : (definedSteps.find((item) => item.id === step.id) ?? definedSteps[step.order]);
           return (
             <Paper key={`${step.id}-${step.order}`} variant="outlined" sx={{ p: 2, borderColor: step.status === "failed" ? "error.main" : undefined }}>
               <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
                 {step.status === "passed" ? <CheckCircleIcon color="success" /> : step.status === "failed" ? <CancelIcon color="error" /> : <RadioButtonUncheckedIcon color="disabled" />}
                 <Typography variant="subtitle1">
-                  {step.order + 1}. {stepLabel(step.action)}
+                  {signIn ? "Sign-in" : `${step.order + 1}.`} {stepLabel(step.action)}
                 </Typography>
                 <Typography variant="body2" color="text.secondary" sx={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {describe(defined)}

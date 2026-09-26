@@ -14,8 +14,17 @@ export interface ExecutionContext {
   browser?: string;
   viewport?: { width: number; height: number };
   headed?: boolean;
+  session?: SharedSession;
   steps: TestStep[];
   signal: AbortSignal;
+}
+
+/** Consecutive jobs that share one browser, so a run plays out like one person using the app. */
+export interface SharedSession {
+  key: string;
+  index: number;
+  total: number;
+  directory: string;
 }
 
 export interface StepResult {
@@ -42,6 +51,8 @@ export interface EngineResult {
   steps: StepResult[];
   errors: { code: string; message: string }[];
   artifacts: ArtifactReference[];
+  /** Evidence that belongs to the whole run, such as the recording of a shared browser session. */
+  runArtifacts?: ArtifactReference[];
   metrics?: Record<string, number>;
   logs: string[];
 }

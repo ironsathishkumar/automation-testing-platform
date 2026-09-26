@@ -24,7 +24,7 @@ export default function TestCasesPage({ params }: { params: Promise<{ projectId:
     <>
       <PageHeader
         title="Test cases"
-        subtitle="Each test case is one check. Press Run for one, or Run all to test the whole app. Turn on “Show browser” to watch it happen."
+        subtitle="Run all plays these tests top to bottom in one browser, like one person using the app: sign in, work through each feature, sign out. Turn on “Show browser” to watch it happen."
         action={
           <Stack direction="row" spacing={1} sx={{ alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
             <WatchToggle />
@@ -45,6 +45,7 @@ export default function TestCasesPage({ params }: { params: Promise<{ projectId:
         <Table>
           <TableHead>
             <TableRow>
+              <TableCell>Order</TableCell>
               <TableCell>Key</TableCell>
               <TableCell>Title</TableCell>
               <TableCell>Test type</TableCell>
@@ -56,6 +57,7 @@ export default function TestCasesPage({ params }: { params: Promise<{ projectId:
           <TableBody>
             {cases.data.map((testCase) => (
               <TableRow key={testCase.id} hover>
+                <TableCell>{testCase.setup ? <Chip size="small" color="primary" label="Sign-in" /> : (testCase.sequence ?? "–")}</TableCell>
                 <TableCell>{testCase.key}</TableCell>
                 <TableCell>
                   <Link href={`/projects/${projectId}/test-cases/${testCase.id}`}>{testCase.title}</Link>

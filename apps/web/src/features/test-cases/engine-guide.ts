@@ -45,7 +45,16 @@ export const ACTION_GUIDE: Record<StepAction, ActionGuide> = {
   fill: {
     label: "Type text",
     target: { ...PAGE_TARGET, placeholder: "#email  or  input[name=email]" },
-    value: { label: "Text", placeholder: "user@example.com  or  {{USER_EMAIL}}", help: "Use {{NAME}} to insert an environment variable." },
+    value: {
+      label: "Text",
+      placeholder: "user@example.com  or  {{USER_EMAIL}}",
+      help: "Use {{NAME}} to insert an environment variable. {{RUN_ID}} is unique per run, e.g. Task {{RUN_ID}}.",
+    },
+  },
+  press: {
+    label: "Press key",
+    target: { ...PAGE_TARGET, placeholder: "input[placeholder='Search…']  (empty = the focused element)", help: "The element that receives the key." },
+    value: { label: "Key", placeholder: "Enter  or  Escape  or  Control+A", help: "Playwright key name. Defaults to Enter." },
   },
   select: {
     label: "Choose option",
@@ -132,7 +141,7 @@ export const ACTION_GUIDE: Record<StepAction, ActionGuide> = {
   },
 };
 
-const BROWSER_ACTIONS: StepAction[] = ["navigate", "click", "fill", "select", "check", "uncheck", "upload", "download", "assertText", "assertVisible", "wait", "screenshot"];
+const BROWSER_ACTIONS: StepAction[] = ["navigate", "click", "fill", "press", "select", "check", "uncheck", "upload", "download", "assertText", "assertVisible", "wait", "screenshot"];
 
 const REQUEST_CHECKS: FieldHint = {
   label: "Checks (JSON)",

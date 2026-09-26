@@ -74,6 +74,12 @@ export class TestCase {
   @Prop({ type: Object })
   testData?: Record<string, unknown>;
 
+  @Prop()
+  sequence?: number;
+
+  @Prop({ default: false })
+  setup!: boolean;
+
   @Prop({ required: true, type: Types.ObjectId })
   createdBy!: Types.ObjectId;
 
