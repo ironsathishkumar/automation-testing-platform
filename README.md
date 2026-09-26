@@ -46,6 +46,22 @@ The platform orchestrates mature testing engines instead of reimplementing them.
 | [docs/19_TESTING_STRATEGY.md](docs/19_TESTING_STRATEGY.md) | How the platform itself is tested |
 | [docs/20_FUTURE_ENHANCEMENTS.md](docs/20_FUTURE_ENHANCEMENTS.md) | Post-MVP roadmap |
 
+## Run locally
+
+Phase 0 and Phase 1 are implemented: the local web app and API cover accounts, projects, applications, environments, test cases, suites, and plans. Execution engines are not running yet.
+
+```bash
+cp .env.example .env
+docker compose up -d
+npm install
+npm run dev:api
+npm run dev:web
+```
+
+Open http://127.0.0.1:3000 and create a local account. API docs are at http://127.0.0.1:4000/api/docs.
+
+If 3000 or 4000 is already taken, change `API_PORT` and the web port together, and set `NEXT_PUBLIC_API_URL` to that API.
+
 ## First implementation target
 
 Build V1 around:

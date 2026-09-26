@@ -2,29 +2,29 @@
 
 ## Foundation
 
-- [ ] Initialize repository
-- [ ] Configure TypeScript
-- [ ] Configure ESLint
-- [ ] Create Next.js app
-- [ ] Create MUI theme
-- [ ] Create API app
-- [ ] Configure MongoDB
-- [ ] Configure environment variables
-- [ ] Add structured logging
-- [ ] Add global error handling
-- [ ] Add API validation
-- [ ] Add Swagger
+- [x] Initialize repository
+- [x] Configure TypeScript
+- [x] Configure ESLint
+- [x] Create Next.js app
+- [x] Create MUI theme
+- [x] Create API app
+- [x] Configure MongoDB
+- [x] Configure environment variables
+- [x] Add structured logging
+- [x] Add global error handling
+- [x] Add API validation
+- [x] Add Swagger
 
 ## Core
 
-- [ ] User model
-- [ ] Authentication
-- [ ] Project CRUD
-- [ ] Application CRUD
-- [ ] Environment CRUD
-- [ ] Test case CRUD
-- [ ] Test suite CRUD
-- [ ] Test plan CRUD
+- [x] User model
+- [x] Authentication
+- [x] Project CRUD
+- [x] Application CRUD
+- [x] Environment CRUD
+- [x] Test case CRUD
+- [x] Test suite CRUD
+- [x] Test plan CRUD
 
 ## Execution
 
