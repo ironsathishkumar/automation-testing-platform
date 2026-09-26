@@ -57,16 +57,16 @@
 
 ## API
 
-- [ ] Request builder
-- [ ] Headers
-- [ ] Query parameters
-- [ ] Body
-- [ ] Auth
-- [ ] Status assertion
-- [ ] Header assertion
-- [ ] JSON assertion
-- [ ] Schema assertion
-- [ ] Response-time assertion
+- [x] Request builder
+- [x] Headers
+- [x] Query parameters
+- [x] Body
+- [x] Auth
+- [x] Status assertion
+- [x] Header assertion
+- [x] JSON assertion
+- [x] Schema assertion
+- [x] Response-time assertion
 
 ## Reporting
 
