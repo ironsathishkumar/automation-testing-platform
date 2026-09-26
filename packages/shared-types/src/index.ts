@@ -228,6 +228,18 @@ export interface ProjectFile {
   createdAt: string;
 }
 
+export interface DocumentSection {
+  title: string;
+  level: number;
+  body: string;
+}
+
+export interface ProjectFileText {
+  file: ProjectFile;
+  text: string;
+  sections: DocumentSection[];
+}
+
 export interface DashboardSummary {
   projectCount: number;
   activeProjectCount: number;

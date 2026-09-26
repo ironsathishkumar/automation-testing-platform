@@ -1,18 +1,28 @@
 import { HttpStatus, Injectable } from "@nestjs/common";
 import { InjectModel } from "@nestjs/mongoose";
-import { AiPromptInput, AiTestInput, generatedAnalysisSchema, generatedScenariosSchema, generatedSuggestionsSchema, generatedTestSchema } from "@atp/validation";
+import {
+  AiPromptInput,
+  AiTestInput,
+  generatedAnalysisSchema,
+  generatedDocumentTestsSchema,
+  generatedScenariosSchema,
+  generatedSuggestionsSchema,
+  generatedTestSchema,
+} from "@atp/validation";
 import { Model, Types } from "mongoose";
 import { ZodError } from "zod";
 import { AppException } from "../../common/app.exception";
 import { asObjectId } from "../../common/ids";
 import { ApplicationsService } from "../applications/applications.service";
+import { ProjectFilesService } from "../project-files/project-files.service";
 import { ProjectsService } from "../projects/projects.service";
 import { TestCasesService } from "../test-cases/test-cases.service";
 import { TestResult, TestRun } from "../test-runs/execution.schemas";
 import { AiRequest, AiRequestDocument } from "./ai-request.schema";
 import { AiProvider } from "./ai.provider";
-import { parseModelJson } from "./ai.parse";
+import { aiSettings, parseModelJson } from "./ai.parse";
 
+const DOCUMENT_CHAR_LIMIT = 15_000;
 const JSON_SYSTEM = "Reply with JSON only. Do not invent results that were not asked for, and do not include markdown.";
 
 @Injectable()
@@ -25,6 +35,7 @@ export class AiService {
     private readonly projects: ProjectsService,
     private readonly applications: ApplicationsService,
     private readonly testCases: TestCasesService,
+    private readonly files: ProjectFilesService,
   ) {}
 
   async list(projectId: string) {
@@ -50,6 +61,41 @@ export class AiService {
     const output = this.read(text, generatedTestSchema);
     const record = await this.store(projectId, "test", input.prompt, { ...output, applicationId: input.applicationId }, userId);
     return this.present(record);
+  }
+
+  status() {
+    try {
+      const settings = aiSettings(process.env);
+      return { configured: Boolean(settings), model: settings?.model ?? null, message: settings ? null : "Set AI_API_KEY in .env and restart the API." };
+    } catch (error) {
+      return { configured: false, model: null, message: error instanceof Error ? error.message : "AI provider is misconfigured" };
+    }
+  }
+
+  async documentTests(fileId: string, applicationId: string, userId: string) {
+    const document = await this.files.readText(fileId);
+    const projectId = document.file.projectId;
+    await this.applications.ensureInProject(applicationId, projectId);
+    const excerpt = document.text.slice(0, DOCUMENT_CHAR_LIMIT);
+    const text = await this.provider.complete(
+      JSON_SYSTEM,
+      [
+        "Read the requirement document below and draft up to 8 automated tests that check the behaviour it describes.",
+        'Reply as {"tests":[{"title":"","objective":"","engineType":"web","steps":[{"action":"navigate","target":"","value":""}]}]}.',
+        "engineType is web for browser tests or api for HTTP tests.",
+        "Web actions: navigate (value = path like /login), click, fill (target = CSS selector, value = text), select, check, uncheck, assertText (target, value = expected text), assertVisible (target), wait, screenshot.",
+        "API tests use action httpRequest with target = path.",
+        "Paths are relative to the application base URL. Only use behaviour stated in the document; if selectors are unknown, use descriptive placeholders like [data-testid=task-title].",
+        `Document "${document.file.fileName}":`,
+        excerpt,
+      ].join("\n"),
+    );
+    const output = this.read(text, generatedDocumentTestsSchema);
+    const records = [];
+    for (const draft of output.tests) {
+      records.push(await this.store(projectId, "test", `From document ${document.file.fileName}`, { ...draft, applicationId }, userId));
+    }
+    return records.map((record) => this.present(record));
   }
 
   async suggestions(projectId: string, input: AiPromptInput, userId: string) {

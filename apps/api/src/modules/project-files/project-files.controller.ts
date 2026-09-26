@@ -34,6 +34,11 @@ export class ProjectFilesController {
     return this.files.open(id);
   }
 
+  @Get("files/:id/text")
+  text(@Param("id") id: string) {
+    return this.files.readText(id);
+  }
+
   @Delete("files/:id")
   remove(@Param("id") id: string) {
     return this.files.remove(id);

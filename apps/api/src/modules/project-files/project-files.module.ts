@@ -9,5 +9,6 @@ import { ProjectFilesService } from "./project-files.service";
   imports: [ProjectsModule, MongooseModule.forFeature([{ name: ProjectFile.name, schema: ProjectFileSchema }])],
   controllers: [ProjectFilesController],
   providers: [ProjectFilesService],
+  exports: [ProjectFilesService],
 })
 export class ProjectFilesModule {}

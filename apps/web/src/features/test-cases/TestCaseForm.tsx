@@ -96,7 +96,14 @@ function toSteps(rows: FormValues["steps"]) {
   });
 }
 
-export function TestCaseForm({ projectId, testCaseId }: { projectId: string; testCaseId?: string }) {
+export interface TestCasePrefill {
+  title: string;
+  objective?: string;
+  description?: string;
+  tags?: string[];
+}
+
+export function TestCaseForm({ projectId, testCaseId, prefill }: { projectId: string; testCaseId?: string; prefill?: TestCasePrefill }) {
   const router = useRouter();
   const queryClient = useQueryClient();
   const [tagsText, setTagsText] = useState("");
@@ -141,6 +148,12 @@ export function TestCaseForm({ projectId, testCaseId }: { projectId: string; tes
     setTagsText(existing.data.tags.join(", "));
     setPreconditionsText(existing.data.preconditions.join("\n"));
   }, [existing.data, form]);
+
+  useEffect(() => {
+    if (!prefill || testCaseId) return;
+    form.reset({ ...defaults(), title: prefill.title, objective: prefill.objective ?? "", description: prefill.description ?? "" });
+    setTagsText((prefill.tags ?? []).join(", "));
+  }, [prefill, testCaseId, form]);
 
   const applicationId = form.watch("applicationId");
   useEffect(() => {

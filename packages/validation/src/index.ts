@@ -209,6 +209,14 @@ export const generatedTestSchema = z.object({
     .max(30),
 });
 
+export const generatedDocumentTestsSchema = z.object({
+  tests: z.array(generatedTestSchema).min(1).max(8),
+});
+
+export const aiDocumentTestsSchema = z.object({
+  applicationId: objectId,
+});
+
 export const generatedSuggestionsSchema = z.object({
   suggestions: z.array(z.string().trim().min(2).max(500)).min(1).max(8),
 });

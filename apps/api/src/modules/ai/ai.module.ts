@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
 import { ApplicationsModule } from "../applications/applications.module";
+import { ProjectFilesModule } from "../project-files/project-files.module";
 import { ProjectsModule } from "../projects/projects.module";
 import { TestCasesModule } from "../test-cases/test-cases.module";
 import { TestResult, TestResultSchema, TestRun, TestRunSchema } from "../test-runs/execution.schemas";
@@ -14,6 +15,7 @@ import { AiService } from "./ai.service";
     ProjectsModule,
     ApplicationsModule,
     TestCasesModule,
+    ProjectFilesModule,
     MongooseModule.forFeature([
       { name: AiRequest.name, schema: AiRequestSchema },
       { name: TestRun.name, schema: TestRunSchema },
