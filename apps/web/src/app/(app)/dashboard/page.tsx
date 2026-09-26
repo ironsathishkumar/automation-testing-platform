@@ -1,6 +1,6 @@
 "use client";
 
-import { Alert, Button, CircularProgress, Grid, Paper, Stack, Table, TableBody, TableCell, TableHead, TableRow, Typography } from "@mui/material";
+import { Alert, Button, CircularProgress, Grid, Paper, Table, TableBody, TableCell, TableHead, TableRow, Typography } from "@mui/material";
 import { DashboardSummary } from "@atp/shared-types";
 import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
@@ -32,13 +32,16 @@ export default function DashboardPage() {
     ["Test cases", data.testCaseCount],
     ["Suites", data.suiteCount],
     ["Plans", data.planCount],
+    ["Runs", data.runCount],
+    ["Passed runs", data.passedRunCount],
+    ["Failed runs", data.failedRunCount],
   ];
 
   return (
     <>
       <PageHeader
         title="Dashboard"
-        subtitle="Local inventory of projects and tests. Execution arrives in a later phase."
+        subtitle="Projects, tests, and local run results on this workstation."
         action={
           <Button variant="contained" component={Link} href="/projects">
             Open projects
@@ -86,11 +89,6 @@ export default function DashboardPage() {
           </Table>
         </Paper>
       )}
-      <Stack sx={{ mt: 3 }}>
-        <Typography variant="body2" color="text.secondary">
-          Runs, pass rate, and evidence show up after the execution worker is added.
-        </Typography>
-      </Stack>
     </>
   );
 }

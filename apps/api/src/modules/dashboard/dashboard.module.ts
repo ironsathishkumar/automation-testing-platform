@@ -6,6 +6,7 @@ import { Project, ProjectSchema } from "../projects/project.schema";
 import { TestCase, TestCaseSchema } from "../test-cases/test-case.schema";
 import { TestPlan, TestPlanSchema } from "../test-plans/test-plan.schema";
 import { TestSuite, TestSuiteSchema } from "../test-suites/test-suite.schema";
+import { TestRun, TestRunSchema } from "../test-runs/execution.schemas";
 import { DashboardController } from "./dashboard.controller";
 import { DashboardService } from "./dashboard.service";
 
@@ -18,6 +19,7 @@ import { DashboardService } from "./dashboard.service";
       { name: TestCase.name, schema: TestCaseSchema },
       { name: TestSuite.name, schema: TestSuiteSchema },
       { name: TestPlan.name, schema: TestPlanSchema },
+      { name: TestRun.name, schema: TestRunSchema },
     ]),
   ],
   controllers: [DashboardController],

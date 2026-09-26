@@ -213,6 +213,9 @@ export interface DashboardSummary {
   testCaseCount: number;
   suiteCount: number;
   planCount: number;
+  runCount: number;
+  passedRunCount: number;
+  failedRunCount: number;
   recentProjects: Project[];
 }
 

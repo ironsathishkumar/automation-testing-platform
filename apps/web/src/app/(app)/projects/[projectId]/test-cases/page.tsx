@@ -21,7 +21,7 @@ export default function TestCasesPage({ params }: { params: Promise<{ projectId:
     <>
       <PageHeader
         title="Test cases"
-        subtitle="Define steps now. Engines will execute them in a later phase."
+        subtitle="Define steps, then run them with the engine selected on the case."
         action={<Button variant="contained" component={Link} href={`/projects/${projectId}/test-cases/new`}>New test case</Button>}
       />
       {cases.error ? <Alert severity="error">{errorMessage(cases.error)}</Alert> : null}

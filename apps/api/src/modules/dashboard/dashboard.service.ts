@@ -8,6 +8,7 @@ import { Project, ProjectDocument } from "../projects/project.schema";
 import { TestCase } from "../test-cases/test-case.schema";
 import { TestPlan } from "../test-plans/test-plan.schema";
 import { TestSuite } from "../test-suites/test-suite.schema";
+import { TestRun } from "../test-runs/execution.schemas";
 
 @Injectable()
 export class DashboardService {
@@ -18,10 +19,11 @@ export class DashboardService {
     @InjectModel(TestCase.name) private readonly testCases: Model<TestCase>,
     @InjectModel(TestSuite.name) private readonly suites: Model<TestSuite>,
     @InjectModel(TestPlan.name) private readonly plans: Model<TestPlan>,
+    @InjectModel(TestRun.name) private readonly runs: Model<TestRun>,
   ) {}
 
   async summary(): Promise<DashboardSummary> {
-    const [projectCount, activeProjectCount, applicationCount, environmentCount, testCaseCount, suiteCount, planCount, recent] =
+    const [projectCount, activeProjectCount, applicationCount, environmentCount, testCaseCount, suiteCount, planCount, runCount, passedRunCount, failedRunCount, recent] =
       await Promise.all([
         this.projects.countDocuments(),
         this.projects.countDocuments({ status: "active" }),
@@ -30,6 +32,9 @@ export class DashboardService {
         this.testCases.countDocuments(),
         this.suites.countDocuments(),
         this.plans.countDocuments(),
+        this.runs.countDocuments(),
+        this.runs.countDocuments({ status: "passed" }),
+        this.runs.countDocuments({ status: "failed" }),
         this.projects.find().sort({ updatedAt: -1 }).limit(5),
       ]);
 
@@ -41,6 +46,9 @@ export class DashboardService {
       testCaseCount,
       suiteCount,
       planCount,
+      runCount,
+      passedRunCount,
+      failedRunCount,
       recentProjects: recent.map((project) => this.present(project)),
     };
   }

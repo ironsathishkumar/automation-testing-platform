@@ -28,7 +28,7 @@ export default function SettingsPage() {
         </Paper>
         <Paper sx={{ p: 2.5 }}>
           <Typography variant="h6">Artifacts</Typography>
-          <Typography color="text.secondary">Screenshots, videos, and traces will be stored under storage/artifacts when execution is added.</Typography>
+          <Typography color="text.secondary">Screenshots, videos, traces, and reports are stored under storage on this machine.</Typography>
         </Paper>
       </Stack>
     </>
