@@ -40,20 +40,20 @@
 
 ## Web
 
-- [ ] Playwright integration
-- [ ] Browser configuration
-- [ ] Navigation action
-- [ ] Click action
-- [ ] Fill action
-- [ ] Select action
-- [ ] Checkbox action
-- [ ] Upload action
-- [ ] Download action
-- [ ] Assertions
-- [ ] Screenshot
-- [ ] Video
-- [ ] Trace
-- [ ] Failure capture
+- [x] Playwright integration
+- [x] Browser configuration
+- [x] Navigation action
+- [x] Click action
+- [x] Fill action
+- [x] Select action
+- [x] Checkbox action
+- [x] Upload action
+- [x] Download action
+- [x] Assertions
+- [x] Screenshot
+- [x] Video
+- [x] Trace
+- [x] Failure capture
 
 ## API
 

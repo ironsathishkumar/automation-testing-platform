@@ -1,6 +1,5 @@
 import { Module } from "@nestjs/common";
 import { MongooseModule } from "@nestjs/mongoose";
-import { EngineRegistry } from "../../engines/engine-registry";
 import { Application, ApplicationSchema } from "../applications/application.schema";
 import { Environment, EnvironmentSchema } from "../environments/environment.schema";
 import { ProjectsModule } from "../projects/projects.module";
@@ -28,7 +27,7 @@ import { TestRunsService } from "./test-runs.service";
     ]),
   ],
   controllers: [TestRunsController],
-  providers: [TestRunsService, EngineRegistry],
-  exports: [TestRunsService, EngineRegistry],
+  providers: [TestRunsService],
+  exports: [TestRunsService],
 })
 export class TestRunsModule {}

@@ -12,11 +12,13 @@ import { TestCasesModule } from "./modules/test-cases/test-cases.module";
 import { TestPlansModule } from "./modules/test-plans/test-plans.module";
 import { TestRunsModule } from "./modules/test-runs/test-runs.module";
 import { TestSuitesModule } from "./modules/test-suites/test-suites.module";
+import { EnginesModule } from "./engines/engines.module";
 import { PlatformModule } from "./platform/platform.module";
 
 @Module({
   imports: [
     PlatformModule,
+    EnginesModule,
     HealthModule,
     AuthModule,
     ProjectsModule,

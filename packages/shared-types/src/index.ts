@@ -36,6 +36,8 @@ export const STEP_ACTIONS = [
   "assertVisible",
   "httpRequest",
   "wait",
+  "download",
+  "screenshot",
 ] as const;
 
 export type ProjectStatus = (typeof PROJECT_STATUSES)[number];
